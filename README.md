@@ -19,9 +19,9 @@ Para entenderlo mejor podemos ver el proyecto de **ecommerce-carrito**, el cual 
 proyecto(los datos existen solo en la RAM), cuando se elija la opción de salir del programa, toda la información que contenía se perderá.
 
 **¿Cómo interactúa Python con un archivo?**  
-Usando una analogía simple pensando que es lo mismo que abrir un cuaderno; Esto conlleva una serie de pasos, como:
+Usando una analogía simple. Es lo mismo que abrir un cuaderno; Esto conlleva una serie de pasos, como:
   1. abrir el cuaderno
-  2. Escribir algo nuevo ó leer lo que ya estaba escrito
+  2. Escribir algo nuevo o leer lo que ya estaba escrito
   3. Cerrar el cuaderno
 
 En Python, ese ciclo completo se ve así:  
@@ -38,7 +38,7 @@ Por y para eso existe una estructura más segura para usar:
 Al salir del bloque Python cierra automáticamente el archivo, sin necesidad de llamar a **archivo.close()** manualmente, y se debe de tener en 
 cuenta que todo lo que se haga con el archivo(en este caso leer/escribir) debe de ir dentro del bloque(with).  
 
-La estructura vista anteriormente vista de una forma general quedaría de la siguiente forma:  
+La estructura vista anteriormente de una forma general quedaría de la siguiente forma:  
 
     whith open("PrimerArgumento", "SegundoArgumento") as NombreVariable:
 - **with**: Es la palabra clave que abre un bloque administrado, garantiza que algo se "limpie" solo al final(en este caso, hace que el archivo se cierre), 
@@ -49,6 +49,30 @@ pase lo que pase adentro, incluso si hay un error.
 - **as NombreVariable**: Le da un nombre de variable al objeto archivo que open() devolvió, para usarlo dentro del bloque.
 
 **Modos de apertura**  
+
+
+|   Modo    | ¿Qué hace? |  Si el archivo NO existe  |  Si el archivo SI existe  |
+| --------- | ---------- | ------------------------- | ------------------------- |
+|    "r"    | Abre el archivo para leer lo que ya tiene, y no se puede escribir o modificar nada. | Lanza **FileNotFoundError** | Lee desde el principio. |
+|    "w"    | Abre el archivo para escribir. | Lo crea | Borra todo el contenido anterior del archivo. |
+|    "a"    | Abre el archivo para escribir, pero sin borrar nada, lo que se escriba se suma al final de lo que ya había. | Lo crea | Conserva lo anterior, escribe después. |
+|    "x"    | Es como "w", pero Solo si el archivo no existe. | Lo crea | Lanza **FileExistsError** (protección para no sobrescribir sin querer). |
+|    "r+"   | Es la combinación de "r" y "w", pero NO borra el contenido anterior del archivo al abrirlo (lectura y escritura). | Lanza error | Lee y escribe sobre el mismo archivo. | 
+|    "w+"   | Casi lo mismo que "r+", pero este SI borra el contenido anterior del archivo al abrirlo (escritura y lectura). | Lo crea | Borra todo, después se puede leer/escribir. |
+|    "a+"   | Es la combinación de "a" y "r". | Lo crea | Conserva contenido, se puede seguir agregando, y también leer todo el archivo (lo viejo y lo nuevo). |
+
+Agregando una "b" al modo (ej. "rb", "wb") se trabaja en binario (para imágenes, PDFs, ejecutables) en vez de texto.
+
+**Métodos a usar sobre el objeto archivo**  
+|   Método    | ¿Qué hace? | ¿Qué devuelve? |
+| --------- | ---------- | ------------------------- |
+| .read() | Lee todo el archivo de una vez. | Un solo **string** con todo el contenido. |
+| .readlines() | Lee todo el archivo. | Una lista, cada línea es un elemento (con su \n incluido). |
+| .write(texto) | Escribe un **string** | No agrega salto de línea solo, hay que ponerle **\n** a mano. |
+| .writelines(lista) | Escribe una lista de strings, uno tras otro | Tampoco agrega \n entre elementos automáticamente |
+
+
+
 
 
 
