@@ -69,8 +69,16 @@ Agregando una "b" al modo (ej. "rb", "wb") se trabaja en binario (para imágenes
 | .read() | Lee todo el archivo de una vez. | Un solo **string** con todo el contenido. |
 | .readlines() | Lee todo el archivo. | Una lista, cada línea es un elemento (con su \n incluido). |
 | .write(texto) | Escribe un **string** | No agrega salto de línea solo, hay que ponerle **\n** a mano. |
-| .writelines(lista) | Escribe una lista de strings, uno tras otro | Tampoco agrega \n entre elementos automáticamente |
+| .writelines(lista) | Escribe una lista de strings, uno tras otro | Tampoco agrega \n entre elementos automáticamente |  
 
+## Modulo 6: Entornos virtuales
+Cada proyecto necesita sus propias librerías, y a veces versiones distintas. Si todo se instala en el Python general del computador, los proyectos se mezclan y uno puede romper a otro. 
+Un **entorno virtual** es una carpeta dentro del proyecto (.venv) con su propio Python y sus propias librerías. Es como darle a cada proyecto su propia caja de herramientas,
+en vez de una caja compartida donde todo se revuelve.
+Este sirve para 3 cosas:
+1. Que las librerías de un proyecto no choquen con las de otro.
+2. Poder guardar la lista exacta de librerías en un archivo (requirements.txt), para que cualquiera reproduzca tu entorno.
+3. Que el computador se mantenga limpio.
 
 
 
