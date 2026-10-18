@@ -48,7 +48,7 @@ pase lo que pase adentro, incluso si hay un error.
 - **SegundoArgumento**: Es el modo de apertura.
 - **as NombreVariable**: Le da un nombre de variable al objeto archivo que open() devolvió, para usarlo dentro del bloque.
 
-**Modos de apertura**  
+### **Modos de apertura**  
 
 
 |   Modo    | ¿Qué hace? |  Si el archivo NO existe  |  Si el archivo SI existe  |
@@ -63,7 +63,7 @@ pase lo que pase adentro, incluso si hay un error.
 
 Agregando una "b" al modo (ej. "rb", "wb") se trabaja en binario (para imágenes, PDFs, ejecutables) en vez de texto.
 
-**Métodos a usar sobre el objeto archivo**  
+### **Métodos a usar sobre el objeto archivo**  
 |   Método    | ¿Qué hace? | ¿Qué devuelve? |
 | --------- | ---------- | ------------------------- |
 | .read() | Lee todo el archivo de una vez. | Un solo **string** con todo el contenido. |
