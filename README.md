@@ -80,6 +80,27 @@ Este sirve para 3 cosas:
 2. Poder guardar la lista exacta de librerías en un archivo (requirements.txt), para que cualquiera reproduzca tu entorno.
 3. Que el computador se mantenga limpio.
 
+**venv** es la abreviatura que viene de virtual environment (entorno virtual), y **.venv** es simplemente el nombre de la carpeta donde vive. El nombre es una convención, y podría llamarse de otra forma.
+
+Los **venv** son como una caja de herramientas por proyecto. Python trae una caja general en el computador, y cada librería que se instala con pip (el sistema de gestión de paquetes oficial de Python) va a esa caja. Con pocos proyectos no se generan inconsistencias, pero con una cantidad elevada de proyectos la cosa cambia.
+
+Supongamos que un proyecto A necesita la librería X en la versión 1, y un proyecto B necesita la versión 2. En la caja general solo cabe una de las dos versiones, y al instalar una la otra no existe, y el otro proyecto se rompería, ya que requiere una versión distinta que el otro.
+Con el tiempo la caja general acumula librerías de todos los proyectos, y no no se sabe cuál usa cuál.
+Si se quiere que otra persona corra el proyecto, no se sabe qué librerías necesita.
+La ventaja de los **venv** es que cada proyecto tiene su propia caja que cumple tres factores claves:
+- **Aislamiento:** todo lo que se instale en el proyecto A, solo existira en ese proyecto.
+- **Reproducibilidad:** como el entorno solo tiene lo que usa el proyecto, la lista de librerías (requirements.txt) es exacta. Cualquiera crea el entorno y corre el proyecto de igual manera que uno.
+- **Limpieza:** si algo se daña, simplemente se borra la carpeta .venv y se recrea en un minuto, sin tocar el Python del computador.
+
+En python, para activar un **venv** simplemente se abre la terminal y estando parado en la carpeta del proyecto, se escribe este comando `.venv\Scripts\Activate.ps1`; para ver las librerías que esta utilizando ese proyecto con el venv se pone `pip list`; para comprobar que de verdad se esta usando el python del entorno se pone `where.exe python`; y para salir del venv, se pone `deactivate`, esto hace que el .venv desaparezca por completo.
+Para guardar la lista de librerías que utiliza el venv, se pone `pip freeze > requirements.txt`, esto con el fin de que este pueda ser utilizado de forma correcta en otros computadores.
+**requirements.txt** es el nombre del archivo en donde se va a guardar todo (puede ser cualquier nombre, pero el estandar en la industria y que todo el mundo reconoce es el mensionado anteriormente).
+**pip freeze** imprime las librerías instaladas en el entorno, cada una con su versión exacta, en el formato **nombre==versión**, el cual se puede ver en el archivo txt.
+**>** redirige esa salida, en vez de mostrarla en pantalla, la escribe dentro de un archivo.
+
+
+
+
 
 
 
