@@ -427,6 +427,89 @@ Con `-> dict` en una función que olvidó el `return`, `mypy` detecta al instant
 - Sin espacios sobrantes al final de las líneas ni líneas vacías de más al final del archivo.
 - Nombres que dicen lo que guardan: `texto_sin_tildes`, no `letras_tilde`.
 
+## Decoradores
+
+Una **función es un objeto** más en Python: se puede guardar en una variable, pasar como argumento a otra función y devolver desde una función. Un **decorador** usa eso: es una función que **recibe una función** y **devuelve una versión nueva** que hace algo extra antes o después de la original, sin tocar su código. Como envolver un regalo: el regalo es el mismo, pero lo envuelves.
+
+```python
+def anunciar(funcion):
+    def envoltura(*args, **kwargs):
+        print(f"Llamando a {funcion.__name__}")
+        resultado = funcion(*args, **kwargs)
+        print("Listo")
+        return resultado
+    return envoltura
+
+
+@anunciar
+def sumar(a, b):
+    return a + b
+
+
+print(sumar(2, 3))   # imprime "Llamando a sumar", "Listo" y luego 5
+```
+
+### Las piezas
+
+| Pieza | ¿Qué es / qué hace? |
+| ----- | ------------------- |
+| `@anunciar` encima de la función | Atajo para `sumar = anunciar(sumar)`: el nombre `sumar` pasa a apuntar a la versión envuelta. |
+| `envoltura` | La función nueva: hace el trabajo extra y en medio llama a la original. |
+| `*args, **kwargs` | Captura cualquier argumento (posicionales y con nombre) y los reenvía tal cual a la original, para que el decorador sirva con cualquier función. |
+| `return resultado` (dentro de la envoltura) | Devuelve lo que devolvió la original. **Si se olvida, la función decorada devuelve `None`** y todo lo que dependa de ella se rompe. |
+| `return envoltura` (al final, **sin paréntesis**) | El decorador entrega la función nueva sin ejecutarla. Con paréntesis (`envoltura()`) la ejecutaría. |
+| `funcion.__name__` | El nombre de la función, como texto (`"sumar"`). Va sin paréntesis porque es un dato guardado en la función. |
+| `@wraps(funcion)` (de `functools`) | Va encima de `envoltura`; hace que la función decorada conserve su nombre y su documentación originales. Sin él, `__name__` valdría `"envoltura"`. |
+
+La envoltura **recuerda** el valor de `funcion` aunque el decorador ya haya terminado de ejecutarse. Esto se llama *closure* y es lo que hace funcionar el truco.
+
+### Ejemplo útil: medir cuánto tarda una función
+
+```python
+import time
+from functools import wraps
+
+DEPURACION = True
+
+
+def medir_tiempo(funcion):
+    @wraps(funcion)
+    def envoltura(*args, **kwargs):
+        inicio = time.perf_counter()
+        resultado = funcion(*args, **kwargs)
+        milisegundos = (time.perf_counter() - inicio) * 1000
+        if DEPURACION:
+            print(f"[{funcion.__name__}] {milisegundos:.2f} ms")
+        return resultado
+    return envoltura
+```
+
+- **`time.perf_counter()`** no da la hora del día: es un **cronómetro** de alta precisión que devuelve segundos desde un punto cero arbitrario. Solo tiene sentido **restar dos lecturas** (inicio y fin). Para la hora real, `datetime.now()`.
+- **`* 1000`** pasa de segundos a milisegundos (1 s = 1000 ms).
+- **`DEPURACION`** es una bandera: el decorador es una herramienta de diagnóstico que se apaga (`False`) cuando el programa se publica. Para eso, más adelante, se usa el módulo `logging` en lugar de `print`.
+- Un decorador que vive en un módulo aparte (`utilidades.py`) se puede reutilizar en cualquier otro: `from utilidades import medir_tiempo` y `@medir_tiempo` encima de la función.
+
+### Formato dentro de un f-string
+
+Lo que va después de los dos puntos le dice a Python cómo mostrar el valor.
+
+| Formato | Resultado | Ejemplo |
+| ------- | --------- | ------- |
+| `{x:.2f}` | Número decimal con 2 decimales | `f"{3.14159:.2f}"` → `"3.14"` |
+| `{x:.0f}` | Sin decimales (redondea) | `f"{2.7:.0f}"` → `"3"` |
+
+### Para qué más sirven los decoradores
+
+Registrar errores, comprobar permisos, guardar resultados en caché, reintentar una llamada que falla, y marcar rutas en una API (`@app.get("/ruta")`).
+
+### Aviso sobre los type hints
+
+Anotar tipos en un decorador requiere herramientas más avanzadas (`Callable`, `ParamSpec`); por ahora se dejan sin anotar. `mypy` no se queja por eso.
+
+### Código suelto en un módulo importado
+
+Si un archivo que se va a importar (como `utilidades.py`) tiene código de prueba suelto (por ejemplo un `print(...)` al final), ese código **se ejecuta cada vez que alguien lo importa**. Las pruebas se borran o se dejan dentro de `if __name__ == "__main__":`.
+
 
 
 
