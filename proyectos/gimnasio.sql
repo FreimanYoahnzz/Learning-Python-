@@ -63,3 +63,37 @@ UPDATE SOCIOS SET PLAN_ID = 1, FECHA_INICIO = '2026-10-26', FECHA_VENCIMIENTO = 
 -- elimina al socio cuyo ID es 6 y su plan esta desactivado
 DELETE FROM SOCIOS WHERE ACTIVO = 0 AND ID = 6;
 	
+-- muestra el nombre de los socios activos, con el nombre del plan, y su precio ordenado por nombre de socio (ABC)
+SELECT S.NOMBRE, P.NOMBRE AS NOMBRE_PLAN, P.PRECIO AS PRECIO_PLAN
+FROM SOCIOS AS S
+INNER JOIN PLANES AS P ON P.ID = S.PLAN_ID
+WHERE S.ACTIVO = 1
+ORDER BY S.NOMBRE ASC;
+
+-- muestra el nombre de los socios, el nombre de plan, la fecha en que se le vence y el telefono de los socios que tienen su plan activo y que el plan se les vence antes del 2026-11-30
+-- y los organiza mostrando a quien se le vence más rapido
+SELECT S.NOMBRE, S.TELEFONO, S.FECHA_VENCIMIENTO, P.NOMBRE AS NOMBRE_PLAN
+FROM PLANES AS P
+INNER JOIN SOCIOS AS S ON S.PLAN_ID = P.ID
+WHERE S.FECHA_VENCIMIENTO < '2026-11-30' AND S.ACTIVO = 1
+ORDER BY S.FECHA_VENCIMIENTO ASC;
+
+-- muestra el nombre de los socios, el plan y el precio del plan, de los socios cuyo plan cuesta mas de 270000 ordenados de mayor a menor
+SELECT S.NOMBRE, P.NOMBRE AS NOMBRE_PLAN, P.PRECIO
+FROM PLANES AS P
+INNER JOIN SOCIOS AS S ON S.PLAN_ID = P.ID
+WHERE P.PRECIO > 270000
+ORDER BY P.PRECIO DESC, S.NOMBRE ASC;
+
+
+INSERT INTO SOCIOS (NOMBRE, TELEFONO, PLAN_ID, FECHA_INICIO, FECHA_VENCIMIENTO, ACTIVO)
+VALUES ('MIGUEL', '+57 3238279345', NULL, '2026-08-07', '2026-11-07', 1);
+
+DELETE FROM SOCIOS WHERE NOMBRE = 'MIGUEL';
+
+
+
+
+
+
+ 
