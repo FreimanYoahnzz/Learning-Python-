@@ -1530,6 +1530,182 @@ Cuándo usarlo: proyectos web o con muchas tablas. Para scripts pequeños, `sqli
 - Práctica de SQL interactiva: https://sqlbolt.com y https://sqlzoo.net
 
 
+---
+
+# 📌 RESUMEN DE CIERRE · Módulo: Bases de datos (SQLite)
+
+> [!IMPORTANT]
+> Este bloque cierra el módulo de bases de datos. Reúne lo nuevo que apareció al aplicar SQLite en un proyecto real: herramientas de Python, comandos de Git y errores comunes. Los resúmenes de cierre de los demás módulos tendrán este mismo formato.
+
+## 1. Python: conceptos nuevos
+
+### `try` / `finally`: ejecutar algo SIEMPRE
+El bloque `finally` se ejecuta haya error, `return` o Ctrl+C. Se usa para cerrar recursos.
+```python
+conexion = sqlite3.connect("app.db")   # se abre ANTES del try
+try:
+    ...                                 # trabajo con la base de datos
+finally:
+    conexion.close()                    # se cierra siempre
+```
+- Si `connect()` estuviera dentro del `try` y fallara, el `finally` intentaría cerrar una variable que no existe y taparía el error real.
+- `with conexion:` **no cierra** la conexión: solo confirma (`commit`) o revierte (`rollback`) la transacción.
+
+### Parámetros con valor por defecto
+```python
+def guardar(dato: str, fecha: str | None = None) -> None:
+    if fecha is None:
+        fecha = datetime.now().isoformat(timespec="seconds")
+```
+- Los parámetros con valor por defecto van **al final**.
+- `str | None` significa "texto o `None`". `None` se usa como "no me lo dieron".
+- El valor por defecto solo se usa si **no pasas el argumento**. Si escribes `fecha=d["fecha"]` y la clave no existe, falla antes de llamar a la función.
+
+### Diccionarios: `[]` vs `.get()`
+| Forma | Si la clave no existe |
+|---|---|
+| `d["clave"]` | lanza `KeyError` |
+| `d.get("clave")` | devuelve `None` |
+| `d.get("clave", 0)` | devuelve `0` |
+
+Con `[]` fallas y te enteras; con `.get()` se rellena en silencio. Elige según lo que necesites.
+
+### Strings: son inmutables
+Los métodos de string **devuelven un string nuevo**; el original no cambia. Hay que guardar el resultado.
+```python
+texto = "  hola\n"
+texto.strip()              # se pierde el resultado
+texto = texto.strip()      # 'hola'
+```
+- `strip()` sin argumento quita espacios, tabs y saltos de línea (`\n`).
+- `strip(" ")` quita **solo espacios**.
+- `repr(texto)` muestra los caracteres escondidos (`'hola\n'`). Úsalo solo para depurar, no para limpiar.
+
+### `==` vs `is`
+- `==` compara **valores**: `texto == ""`.
+- `is` compara **identidad**; se usa casi solo con `None`: `if x is None`.
+- `if x is "":` o `if __name__ is "__main__":` dan `SyntaxWarning`.
+
+### `pathlib` y `shutil`
+```python
+from pathlib import Path
+import shutil
+
+Path("datos.db").exists()                  # ¿existe el archivo o carpeta?
+Path("respaldo").mkdir(exist_ok=True)      # crea la carpeta; sin error si ya existe
+Path(__file__).parent / "schema.sql"       # ruta junto al archivo actual
+
+shutil.copy2("a.json", "respaldo")         # copia conservando fecha y metadatos
+```
+- `mkdir` es un método de un objeto `Path`: `Path("x").mkdir()`, no `Path.mkdir("x")`.
+- Sin `exist_ok=True`, `mkdir` da `FileExistsError` si la carpeta ya existe.
+
+### JSON y JSON Lines (`.jsonl`)
+| Función | Qué hace |
+|---|---|
+| `json.load(archivo)` | **archivo** abierto → objeto de Python |
+| `json.loads(texto)` | **string** → objeto de Python |
+| `json.dump(objeto, archivo)` | objeto → escribe en un **archivo** |
+| `json.dumps(objeto)` | objeto → **string** |
+
+Un `.jsonl` tiene **un JSON por línea**, así que no sirve `json.load` sobre todo el archivo. Se recorre línea por línea:
+```python
+with open("datos.jsonl", "r", encoding="utf-8") as f:
+    for linea in f:
+        linea = linea.strip()          # quita el \n del final
+        if linea == "":
+            continue                   # salta líneas vacías
+        try:
+            registro = json.loads(linea)
+        except json.JSONDecodeError:
+            ...                        # línea dañada: contarla y seguir
+```
+
+## 2. SQLite: lo que se suma
+
+- `SELECT COUNT(*) FROM tabla WHERE col = ?` devuelve **una fila con un número**. Con `row_factory = sqlite3.Row` se lee así: `conexion.execute(sql, (valor,)).fetchone()[0]`.
+- `fetchone()` devuelve una fila (o `None`); `fetchall()`, una lista de filas.
+- `cursor.lastrowid`: id generado en el último `INSERT`.
+- `executemany(sql, lista_de_tuplas)`: una sentencia para muchas filas.
+- Los parámetros de `?` van en una **tupla**; con un solo valor lleva coma: `(x,)`.
+- Nunca armes SQL con f-strings (inyección SQL): usa `?`.
+
+## 3. Patrón de migración de datos
+1. **No pisar nada:** si el destino ya existe, detenerse.
+2. **Respaldo** de los archivos de origen antes de tocar algo.
+3. **Crear** el destino (tablas).
+4. **Copiar** los datos conservando lo importante (por ejemplo, las fechas originales), contando los registros buenos y los inválidos.
+5. **Verificar:** comparar lo que se migró con lo que realmente quedó en el destino (`COUNT(*)`).
+6. Los originales **no se modifican**: si algo falla, se borra el destino y se repite.
+
+## 4. Git y GitHub: ramas, pull request y etiquetas
+
+| Comando | Qué hace |
+|---|---|
+| `git switch -c nombre` | crea una rama y se cambia a ella |
+| `git switch nombre` | cambia de rama |
+| `git branch` | lista las ramas locales |
+| `git push --set-upstream origin nombre` | primer push de una rama nueva (la enlaza con GitHub) |
+| `git pull` | trae de GitHub lo nuevo y lo une a tu rama actual |
+| `git branch -d nombre` | borra una rama ya fusionada (`-D` fuerza) |
+| `git fetch --prune` | limpia referencias a ramas borradas en GitHub |
+| `git log --oneline -3` | los 3 commits más recientes en una línea cada uno |
+| `git tag` | lista las etiquetas |
+| `git tag -a v0.2 -m "mensaje"` | crea una etiqueta anotada sobre el commit actual |
+| `git push origin v0.2` | sube una etiqueta (un `push` normal **no** las sube) |
+| `git show v0.1:main.py` | muestra un archivo tal como era en esa etiqueta |
+| `git switch --detach v0.1` | mira todo el proyecto como era en esa versión (no hagas commits ahí; vuelve con `git switch main`) |
+| `git log -1 --date=short --format=%ad v0.1` | fecha del commit al que apunta la etiqueta |
+
+**Flujo de trabajo tipo empresa:**
+1. `main` siempre estable.
+2. Una rama corta por cada tarea.
+3. **Pull request**: GitHub muestra todos los cambios (pestaña *Files changed*) para revisarlos antes de fusionar.
+4. *Merge pull request* → *Confirm merge*.
+5. `git switch main` → `git pull` → `git tag -a ...` → `git push origin ...`.
+6. Borrar la rama (GitHub y local).
+
+**Rama vs etiqueta:** una rama es una línea de trabajo que avanza; una etiqueta es un marcador **fijo** sobre un commit (una versión).
+
+**`.gitignore`:** lo que no debe subirse (bases de datos `*.db`, entornos virtuales, cachés, datos personales). Revisa siempre `git status` y la pestaña *Files changed* antes de fusionar.
+
+## 5. Documentar un proyecto
+
+**`CHANGELOG.md`:** versiones nuevas **arriba**; cada una con secciones `### Añadido`, `### Cambiado`, `### Limitaciones conocidas`.
+```markdown
+## [0.2] - 2026-11-11
+### Añadido
+- Lo nuevo que ahora existe.
+```
+
+**`README.md`:** descripción, versión actual, requisitos, instalación, uso, estructura de archivos (tabla), estado y próximos pasos.
+
+**Markdown básico:** `#` títulos, `-` listas, `` `código` `` en línea, bloques con tres comillas invertidas, tablas con `|`. Vista previa en VS Code: `Ctrl + Shift + V`.
+
+## 6. Calidad de código
+```bash
+ruff check              # errores de estilo y de código
+ruff check --fix        # arregla lo que puede (por ejemplo, el orden de imports)
+ruff format --check     # ¿el formato está bien? (no modifica)
+ruff format             # aplica el formato
+mypy .                  # revisa los type hints en todo el proyecto
+```
+- Imports en orden alfabético (`I001`), dos líneas en blanco entre funciones de nivel superior, sin espacios sobrantes al final de línea.
+
+## 7. Errores comunes de este módulo
+
+| Error | Causa y solución |
+|---|---|
+| `conexion.commit` sin hacer nada | falta `()`: sin paréntesis solo nombras la función, no la ejecutas |
+| `(x)` en vez de `(x,)` | una tupla de un elemento necesita coma |
+| `INSERT OR REPLACE` borra datos relacionados | borra y reinserta, y dispara `ON DELETE CASCADE`; usa `INSERT ... ON CONFLICT DO UPDATE` |
+| `texto.strip()` no limpia nada | el resultado no se guardó en una variable |
+| Mutar una constante compartida | una función que devuelve una constante global la comparte entre llamadas; usa `copy.deepcopy` |
+| `fetchall()` vacío la segunda vez | un cursor se consume al recorrerlo; guarda la lista |
+| `FOREIGN KEY constraint failed` | falta el registro padre, o falta `PRAGMA foreign_keys = ON` en esa conexión |
+| `json.load` falla con `.jsonl` | no es un solo JSON: recorrer línea por línea con `json.loads` |
+
+---
 
 
 
