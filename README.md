@@ -40,6 +40,20 @@ Desde fundamentos hasta proyectos backend reales (POO, bases de datos, APIs, aut
   - [5. Documentar un proyecto](#5-documentar-un-proyecto)
   - [6. Calidad de código](#6-calidad-de-código)
   - [7. Errores comunes de este módulo](#7-errores-comunes-de-este-módulo)
+- [APIs con FastAPI](#apis-con-fastapi)
+  - [1. Qué es una API y cómo funciona HTTP](#1-qué-es-una-api-y-cómo-funciona-http)
+  - [2. Métodos HTTP y códigos de estado](#2-métodos-http-y-códigos-de-estado)
+  - [3. REST: cómo se diseña una API](#3-rest-cómo-se-diseña-una-api)
+  - [4. Instalar FastAPI y primer servidor](#4-instalar-fastapi-y-primer-servidor)
+  - [5. Parámetros de ruta y de consulta](#5-parámetros-de-ruta-y-de-consulta)
+  - [6. Pydantic: modelos y validación](#6-pydantic-modelos-y-validación)
+  - [7. Crear, actualizar y borrar (POST, PUT, DELETE)](#7-crear-actualizar-y-borrar-post-put-delete)
+  - [8. Errores con HTTPException](#8-errores-con-httpexception)
+  - [9. Depends: dependencias y base de datos](#9-depends-dependencias-y-base-de-datos)
+  - [10. CORS: conectar con un front web](#10-cors-conectar-con-un-front-web)
+  - [11. Autenticación: JWT y OAuth2 (panorama)](#11-autenticación-jwt-y-oauth2-panorama)
+  - [12. Probar la API: docs, TestClient, httpx y curl](#12-probar-la-api-docs-testclient-httpx-y-curl)
+  - [13. Estructura recomendada y errores comunes](#13-estructura-recomendada-y-errores-comunes)
 
 ---
 
@@ -1853,8 +1867,463 @@ mypy .                  # revisa los type hints en todo el proyecto
 
 
 ---
+---
+
+# APIs con FastAPI
+
+Contenido:
+
+1. [Qué es una API y cómo funciona HTTP](#1-qué-es-una-api-y-cómo-funciona-http)
+2. [Métodos HTTP y códigos de estado](#2-métodos-http-y-códigos-de-estado)
+3. [REST: cómo se diseña una API](#3-rest-cómo-se-diseña-una-api)
+4. [Instalar FastAPI y primer servidor](#4-instalar-fastapi-y-primer-servidor)
+5. [Parámetros de ruta y de consulta](#5-parámetros-de-ruta-y-de-consulta)
+6. [Pydantic: modelos y validación](#6-pydantic-modelos-y-validación)
+7. [Crear, actualizar y borrar (POST, PUT, DELETE)](#7-crear-actualizar-y-borrar-post-put-delete)
+8. [Errores con HTTPException](#8-errores-con-httpexception)
+9. [Depends: dependencias y base de datos](#9-depends-dependencias-y-base-de-datos)
+10. [CORS: conectar con un front web](#10-cors-conectar-con-un-front-web)
+11. [Autenticación: JWT y OAuth2 (panorama)](#11-autenticación-jwt-y-oauth2-panorama)
+12. [Probar la API: docs, TestClient, httpx y curl](#12-probar-la-api-docs-testclient-httpx-y-curl)
+13. [Estructura recomendada y errores comunes](#13-estructura-recomendada-y-errores-comunes)
+
+---
+
+## 1. Qué es una API y cómo funciona HTTP
+
+**API** (Application Programming Interface) es una "ventanilla" con reglas claras: un programa pide algo y otro programa responde. En web, esa conversación usa **HTTP**.
+
+Analogía: un restaurante. Tú (cliente) le pides al mesero (API) un plato; el mesero habla con la cocina (tu lógica y tu base de datos) y te trae el resultado. No entras a la cocina.
+
+Una conversación HTTP siempre tiene dos partes:
+
+| Parte | Qué lleva |
+|---|---|
+| **Petición (request)** | método, URL, cabeceras (headers), cuerpo (body, opcional) |
+| **Respuesta (response)** | código de estado, cabeceras, cuerpo (normalmente JSON) |
+
+Partes de una URL: `http://localhost:8000/usuarios/3?activo=true`
+
+- `http` → protocolo (`https` = cifrado)
+- `localhost:8000` → servidor y puerto
+- `/usuarios/3` → ruta (path)
+- `?activo=true` → parámetros de consulta (query)
+
+El cuerpo suele ir en **JSON**. Recordatorio de las 4 funciones de `json`:
+
+| Función | Qué hace |
+|---|---|
+| `json.load(f)` | lee JSON desde un **archivo** → objeto Python |
+| `json.loads(s)` | lee JSON desde un **string** → objeto Python |
+| `json.dump(obj, f)` | escribe un objeto Python en un **archivo** |
+| `json.dumps(obj)` | convierte un objeto Python en un **string** JSON |
+
+(La `s` final significa *string*.) FastAPI hace esta conversión por ti, pero es el mismo formato.
+
+[⬆ Volver al índice](#índice)
+
+---
+
+## 2. Métodos HTTP y códigos de estado
+
+**Métodos** (el "verbo" de la petición):
+
+| Método | Para qué | Ejemplo |
+|---|---|---|
+| `GET` | leer | `GET /productos` |
+| `POST` | crear | `POST /productos` |
+| `PUT` | reemplazar completo | `PUT /productos/5` |
+| `PATCH` | modificar solo algunos campos | `PATCH /productos/5` |
+| `DELETE` | borrar | `DELETE /productos/5` |
+
+`GET` nunca debe cambiar datos; solo lee.
+
+**Códigos de estado** (la respuesta resumida en un número):
+
+| Rango | Significado | Los que más verás |
+|---|---|---|
+| `2xx` | todo bien | `200 OK`, `201 Created`, `204 No Content` |
+| `3xx` | redirección | `301`, `307` |
+| `4xx` | culpa del cliente | `400 Bad Request`, `401 Unauthorized`, `403 Forbidden`, `404 Not Found`, `422 Unprocessable Entity` |
+| `5xx` | culpa del servidor | `500 Internal Server Error` |
+
+Regla práctica: `4xx` = "tu petición está mal"; `5xx` = "mi código falló".
+
+[⬆ Volver al índice](#índice)
+
+---
+
+## 3. REST: cómo se diseña una API
+
+**REST** es un estilo de diseño: las URLs nombran **cosas** (sustantivos, en plural) y el método dice la **acción**.
+
+| Acción | Mal | Bien |
+|---|---|---|
+| listar productos | `GET /obtenerProductos` | `GET /productos` |
+| ver uno | `GET /verProducto?id=5` | `GET /productos/5` |
+| crear | `POST /crearProducto` | `POST /productos` |
+| borrar | `GET /borrarProducto/5` | `DELETE /productos/5` |
+
+Otras reglas:
+- **Sin estado (stateless):** cada petición trae todo lo necesario; el servidor no "recuerda" la anterior (por eso existen tokens, ver sección 11).
+- Respuestas en JSON y con el código de estado correcto.
+- Versionar: `/v1/productos` si algún día cambias el formato.
+
+[⬆ Volver al índice](#índice)
+
+---
+
+## 4. Instalar FastAPI y primer servidor
+
+FastAPI es un framework web moderno: rápido, con validación automática y documentación generada sola.
+
+1. Activa tu entorno virtual (`.venv`).
+2. Instala (las comillas son obligatorias en PowerShell y zsh):
+
+```bash
+pip install "fastapi[standard]"
+```
+
+El extra `[standard]` trae el servidor (`uvicorn`), `httpx` y la CLI `fastapi`.
+
+3. Crea `main.py`:
+
+```python
+from fastapi import FastAPI
+
+app = FastAPI()
 
 
+@app.get("/")
+def raiz() -> dict[str, str]:
+    return {"mensaje": "Hola desde la API"}
+```
+
+- `app = FastAPI()` crea la aplicación.
+- `@app.get("/")` es un **decorador**: asocia la ruta `/` con el método `GET` a la función de abajo.
+- Lo que devuelves (un `dict`) se convierte a JSON automáticamente.
+
+4. Arranca el servidor en modo desarrollo:
+
+```bash
+fastapi dev main.py
+```
+
+5. Abre `http://127.0.0.1:8000` (respuesta) y `http://127.0.0.1:8000/docs` (documentación interactiva).
+
+`dev` recarga solo cuando guardas el archivo. Para detener: `Ctrl+C`.
+
+[⬆ Volver al índice](#índice)
+
+---
+
+## 5. Parámetros de ruta y de consulta
+
+**Parámetro de ruta:** va dentro de la URL y identifica un recurso.
+
+```python
+@app.get("/productos/{producto_id}")
+def ver_producto(producto_id: int) -> dict[str, int]:
+    return {"id": producto_id}
+```
+
+`/productos/5` → `producto_id = 5`. El **type hint** (`int`) no es decorativo: FastAPI convierte y valida. `/productos/abc` responde `422` sola.
+
+**Parámetro de consulta:** va después del `?` y suele filtrar. Si la función tiene un parámetro que no está en la ruta, FastAPI lo toma como query.
+
+```python
+@app.get("/productos")
+def listar(limite: int = 10, categoria: str | None = None) -> dict:
+    return {"limite": limite, "categoria": categoria}
+```
+
+- `GET /productos` → `limite=10`, `categoria=None`
+- `GET /productos?limite=3&categoria=bebidas` → ambos valores
+
+Con valor por defecto es opcional; sin valor por defecto es obligatorio (misma regla de las funciones normales: los parámetros con default van al final).
+
+[⬆ Volver al índice](#índice)
+
+---
+
+## 6. Pydantic: modelos y validación
+
+**Pydantic** define la **forma** de los datos y los valida. FastAPI lo usa para el cuerpo (body) de las peticiones.
+
+```python
+from pydantic import BaseModel, Field
+
+
+class ProductoNuevo(BaseModel):
+    nombre: str = Field(min_length=1, max_length=50)
+    precio: float = Field(gt=0)
+    stock: int = 0
+```
+
+Si llega `{"nombre": "", "precio": -5}`, FastAPI responde `422` indicando qué campo falló y por qué, sin que escribas un solo `if`.
+
+Métodos clave (Pydantic v2):
+
+| Método | Qué hace |
+|---|---|
+| `modelo.model_dump()` | modelo → `dict` de Python |
+| `modelo.model_dump_json()` | modelo → string JSON |
+| `Modelo.model_validate(dict)` | `dict` → modelo (valida) |
+| `Modelo.model_validate_json(texto)` | string JSON → modelo (valida) |
+
+(En Pydantic v1 se llamaban `.dict()` y `.parse_obj()`; si ves tutoriales viejos con esos nombres, están desactualizados.)
+
+**Modelo de entrada vs. de salida:** no devuelvas siempre lo mismo que recibes (por ejemplo, el `id` lo crea la base de datos, y una contraseña nunca debe salir).
+
+```python
+class Producto(ProductoNuevo):
+    id: int
+```
+
+```python
+@app.get("/productos/{producto_id}", response_model=Producto)
+def ver_producto(producto_id: int): ...
+```
+
+`response_model` filtra la respuesta: solo salen los campos del modelo.
+
+[⬆ Volver al índice](#índice)
+
+---
+
+## 7. Crear, actualizar y borrar (POST, PUT, DELETE)
+
+Ejemplo con una lista en memoria (datos de prueba, no persisten):
+
+```python
+productos: dict[int, dict] = {}
+siguiente_id = 1
+
+
+@app.post("/productos", response_model=Producto, status_code=201)
+def crear(nuevo: ProductoNuevo) -> dict:
+    global siguiente_id
+    producto = {"id": siguiente_id, **nuevo.model_dump()}
+    productos[siguiente_id] = producto
+    siguiente_id += 1
+    return producto
+
+
+@app.put("/productos/{producto_id}", response_model=Producto)
+def reemplazar(producto_id: int, datos: ProductoNuevo) -> dict:
+    productos[producto_id] = {"id": producto_id, **datos.model_dump()}
+    return productos[producto_id]
+
+
+@app.delete("/productos/{producto_id}", status_code=204)
+def borrar(producto_id: int) -> None:
+    productos.pop(producto_id, None)
+```
+
+- Un parámetro con tipo `BaseModel` (`nuevo: ProductoNuevo`) = FastAPI lo lee del **cuerpo JSON**.
+- `status_code=201` en la creación; `204` en un borrado (sin cuerpo).
+- `{"id": ..., **dict}` crea un diccionario nuevo mezclando el `id` con los campos del modelo.
+
+[⬆ Volver al índice](#índice)
+
+---
+
+## 8. Errores con HTTPException
+
+Cuando algo no existe o no está permitido, **lanza** `HTTPException` (no la devuelvas con `return`):
+
+```python
+from fastapi import HTTPException
+
+
+@app.get("/productos/{producto_id}", response_model=Producto)
+def ver_producto(producto_id: int) -> dict:
+    if producto_id not in productos:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+    return productos[producto_id]
+```
+
+Respuesta: código `404` y cuerpo `{"detail": "Producto no encontrado"}`.
+
+Códigos típicos al lanzar: `400` (dato inválido por lógica de negocio), `401` (no autenticado), `403` (sin permiso), `404` (no existe), `409` (conflicto, p. ej. nombre duplicado).
+
+Los errores de validación (`422`) los genera FastAPI solo; tú lanzas los de lógica de negocio.
+
+[⬆ Volver al índice](#índice)
+
+---
+
+## 9. Depends: dependencias y base de datos
+
+`Depends` le dice a FastAPI: "antes de ejecutar esta ruta, ejecuta esta otra función y pásame su resultado". Sirve para lo que se repite en muchas rutas: abrir la conexión a la base de datos, leer al usuario autenticado, etc.
+
+Con `yield` la dependencia puede **abrir** un recurso y **cerrarlo** al terminar (el mismo patrón de `try/finally`):
+
+```python
+import sqlite3
+from collections.abc import Iterator
+from typing import Annotated
+
+from fastapi import Depends
+
+
+def obtener_conexion() -> Iterator[sqlite3.Connection]:
+    conexion = sqlite3.connect("datos.db", check_same_thread=False)
+    conexion.row_factory = sqlite3.Row
+    try:
+        yield conexion
+    finally:
+        conexion.close()
+
+
+Conexion = Annotated[sqlite3.Connection, Depends(obtener_conexion)]
+
+
+@app.get("/productos")
+def listar(conexion: Conexion) -> list[dict]:
+    filas = conexion.execute("SELECT id, nombre FROM productos").fetchall()
+    return [dict(fila) for fila in filas]
+```
+
+- Lo anterior a `yield` corre antes de la ruta; lo de `finally`, después (incluso si hubo error).
+- Cada petición recibe **su propia** conexión.
+- **`check_same_thread=False`:** SQLite por defecto solo deja usar una conexión en el hilo que la creó. FastAPI puede atender la dependencia y la ruta en hilos distintos, y sin esto verás `ProgrammingError: SQLite objects created in a thread can only be used in that same thread`. Es seguro aquí porque la conexión no se comparte entre peticiones.
+
+[⬆ Volver al índice](#índice)
+
+---
+
+## 10. CORS: conectar con un front web
+
+El navegador **bloquea** que una página de un origen (`http://localhost:3000`) llame a una API de otro origen (`http://localhost:8000`) salvo que la API lo autorice. Esa autorización se llama **CORS**.
+
+```python
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+```
+
+- `allow_origins`: lista de orígenes permitidos. En producción, pon solo tu dominio real; `["*"]` abre a cualquiera.
+- El error aparece en la **consola del navegador**, no en Python; probar con `curl` o `/docs` no lo muestra porque CORS lo aplica el navegador.
+
+[⬆ Volver al índice](#índice)
+
+---
+
+## 11. Autenticación: JWT y OAuth2 (panorama)
+
+Como HTTP no guarda estado, el cliente debe demostrar quién es **en cada petición**.
+
+Flujo típico:
+1. El usuario envía usuario y contraseña a `POST /login`.
+2. El servidor verifica la contraseña (guardada como **hash**, nunca en texto plano; librerías como `pwdlib` o `bcrypt`).
+3. Si es correcta, devuelve un **token JWT** firmado.
+4. El cliente manda en cada petición la cabecera `Authorization: Bearer <token>`.
+5. Una dependencia (`Depends`) valida el token y entrega al usuario a la ruta.
+
+**JWT** (JSON Web Token): texto con tres partes (`cabecera.contenido.firma`). El contenido (por ejemplo, el id del usuario y la fecha de expiración) va codificado, **no cifrado**: nunca pongas secretos dentro. La firma impide que lo alteren.
+
+**OAuth2** es el estándar que define este flujo; FastAPI trae `OAuth2PasswordBearer` y `OAuth2PasswordRequestForm` para implementarlo y hace que el botón **Authorize** aparezca en `/docs`.
+
+Reglas de seguridad: la clave secreta de firma va en una variable de entorno (no en el código ni en GitHub), el token debe expirar, y en producción todo va por `https`.
+
+[⬆ Volver al índice](#índice)
+
+---
+
+## 12. Probar la API: docs, TestClient, httpx y curl
+
+**1. Documentación interactiva** (la más rápida): `http://127.0.0.1:8000/docs` (Swagger UI). Permite probar cada ruta con un botón. También existe `/redoc` y el esquema `openapi.json`.
+
+**2. `TestClient`** (pruebas automáticas, con `pytest`):
+
+```python
+from fastapi.testclient import TestClient
+
+from main import app
+
+cliente = TestClient(app)
+
+
+def test_raiz() -> None:
+    respuesta = cliente.get("/")
+    assert respuesta.status_code == 200
+    assert respuesta.json() == {"mensaje": "Hola desde la API"}
+```
+
+Ejecutar: `pytest`. No hace falta levantar el servidor.
+
+**3. `httpx`** (hacer peticiones desde Python a una API real):
+
+```python
+import httpx
+
+respuesta = httpx.get("http://127.0.0.1:8000/productos", params={"limite": 3})
+print(respuesta.status_code)
+print(respuesta.json())
+
+respuesta = httpx.post("http://127.0.0.1:8000/productos", json={"nombre": "Arroz", "precio": 4200})
+```
+
+`respuesta.json()` convierte el cuerpo a objeto Python (como `json.loads`).
+
+**4. `curl`** (terminal):
+
+```bash
+curl http://127.0.0.1:8000/productos
+curl -X POST http://127.0.0.1:8000/productos -H "Content-Type: application/json" -d '{"nombre": "Arroz", "precio": 4200}'
+```
+
+En **PowerShell**, `curl` es un alias de otro comando y falla con estas opciones. Usa `curl.exe` o `Invoke-RestMethod`.
+
+[⬆ Volver al índice](#índice)
+
+---
+
+## 13. Estructura recomendada y errores comunes
+
+Cuando `main.py` crece, separa por responsabilidad:
+
+```text
+proyecto/
+├── main.py          # crea la app y registra los routers
+├── modelos.py       # modelos Pydantic
+├── dependencias.py  # Depends (conexión, usuario actual)
+└── rutas/
+    └── productos.py # APIRouter con las rutas de un recurso
+```
+
+```python
+from fastapi import APIRouter
+
+router = APIRouter(prefix="/productos", tags=["productos"])
+
+
+@router.get("")
+def listar() -> list: ...
+```
+
+En `main.py`: `app.include_router(router)`.
+
+**Errores comunes:**
+
+| Error | Causa |
+|---|---|
+| `422` inesperado | el cuerpo no coincide con el modelo; mira el campo `detail` |
+| `404` en una ruta que sí existe | falta o sobra `/`, o el método es otro |
+| `ProgrammingError ... same thread` | falta `check_same_thread=False` (sección 9) |
+| error de CORS en el navegador | falta `CORSMiddleware` o el origen no está en `allow_origins` |
+| `{"detail":"Method Not Allowed"}` (`405`) | la ruta existe pero con otro método |
+| ruta `/{id}` "se come" a `/algo` | declara las rutas fijas **antes** de las que tienen parámetro |
+| `ModuleNotFoundError` | entorno virtual sin activar |
+| devolver `return HTTPException(...)` | se debe usar `raise` |
+
+[⬆ Volver al índice](#índice)
 
 
 
