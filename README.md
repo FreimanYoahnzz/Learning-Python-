@@ -1,6 +1,48 @@
 # Learning-Python-
 Desde fundamentos hasta proyectos backend reales (POO, bases de datos, APIs, automatización).
 
+## Índice
+
+- [Modulo Archivos](#modulo-archivos)
+- [Modulo 6: Entornos virtuales](#modulo-6-entornos-virtuales)
+- [Git y GitHub](#git-y-github)
+- [JSON: guardar y leer datos](#json-guardar-y-leer-datos)
+- [Manejo de errores aplicado](#manejo-de-errores-aplicado)
+- [Buenas prácticas de código](#buenas-prácticas-de-código)
+- [Herramientas de Python](#herramientas-de-python)
+- [Type hints y mypy](#type-hints-y-mypy)
+- [Estilo de código (PEP 8)](#estilo-de-código-pep-8)
+- [Decoradores](#decoradores)
+- [Bases de datos: SQL, SQLite y Python](#bases-de-datos-sql-sqlite-y-python)
+  - [1. Conceptos básicos](#1-conceptos-básicos)
+  - [2. Tipos de datos en SQLite](#2-tipos-de-datos-en-sqlite)
+  - [3. Crear y modificar tablas (DDL)](#3-crear-y-modificar-tablas-ddl)
+  - [4. Insertar, actualizar y borrar (DML)](#4-insertar-actualizar-y-borrar-dml)
+  - [5. Consultar con SELECT](#5-consultar-con-select)
+  - [6. JOIN: unir tablas](#6-join-unir-tablas)
+  - [7. Agregaciones y GROUP BY](#7-agregaciones-y-group-by)
+  - [8. Subconsultas, operaciones de conjuntos, CTE y vistas](#8-subconsultas-operaciones-de-conjuntos-cte-y-vistas)
+  - [9. Diseño de bases de datos](#9-diseño-de-bases-de-datos)
+  - [10. Índices](#10-índices)
+  - [11. Transacciones](#11-transacciones)
+  - [12. PRAGMA, sqlite_master y la consola de SQLite](#12-pragma-sqlite_master-y-la-consola-de-sqlite)
+  - [13. Python con sqlite3](#13-python-con-sqlite3)
+  - [14. SQLAlchemy (ORM)](#14-sqlalchemy-orm)
+  - [15. NoSQL y otras bases de datos](#15-nosql-y-otras-bases-de-datos)
+  - [16. Diferencias entre motores](#16-diferencias-entre-motores)
+  - [17. Chuleta: errores y buenas prácticas](#17-chuleta-errores-y-buenas-prácticas)
+  - [18. Dónde profundizar](#18-dónde-profundizar)
+- [📌 RESUMEN DE CIERRE · Módulo: Bases de datos (SQLite)](#-resumen-de-cierre--módulo-bases-de-datos-sqlite)
+  - [1. Python: conceptos nuevos](#1-python-conceptos-nuevos)
+  - [2. SQLite: lo que se suma](#2-sqlite-lo-que-se-suma)
+  - [3. Patrón de migración de datos](#3-patrón-de-migración-de-datos)
+  - [4. Git y GitHub: ramas, pull request y etiquetas](#4-git-y-github-ramas-pull-request-y-etiquetas)
+  - [5. Documentar un proyecto](#5-documentar-un-proyecto)
+  - [6. Calidad de código](#6-calidad-de-código)
+  - [7. Errores comunes de este módulo](#7-errores-comunes-de-este-módulo)
+
+---
+
 ## Modulo Archivos 
 En python, y en programación en general, los archivos sirven para guardar la información de forma permanente
 del script que se este realizando, es decir:
@@ -71,6 +113,9 @@ Agregando una "b" al modo (ej. "rb", "wb") se trabaja en binario (para imágenes
 | .write(texto) | Escribe un **string** | No agrega salto de línea solo, hay que ponerle **\n** a mano. |
 | .writelines(lista) | Escribe una lista de strings, uno tras otro | Tampoco agrega \n entre elementos automáticamente |  
 
+[⬆ Volver al índice](#índice)
+
+
 ## Modulo 6: Entornos virtuales
 Cada proyecto necesita sus propias librerías, y a veces versiones distintas. Si todo se instala en el Python general del computador, los proyectos se mezclan y uno puede romper a otro. 
 Un **entorno virtual** es una carpeta dentro del proyecto (.venv) con su propio Python y sus propias librerías. Es como darle a cada proyecto su propia caja de herramientas,
@@ -97,6 +142,9 @@ Para guardar la lista de librerías que utiliza el venv, se pone `pip freeze > r
 **requirements.txt** es el nombre del archivo en donde se va a guardar todo (puede ser cualquier nombre, pero el estandar en la industria y que todo el mundo reconoce es el mensionado anteriormente).
 **pip freeze** imprime las librerías instaladas en el entorno, cada una con su versión exacta, en el formato **nombre==versión**, el cual se puede ver en el archivo txt.
 **>** redirige esa salida, en vez de mostrarla en pantalla, la escribe dentro de un archivo.
+
+[⬆ Volver al índice](#índice)
+
 
 ## Git y GitHub
 
@@ -157,6 +205,9 @@ registro_*.json
 
 Regla: el **código** va al repositorio; los **datos que genera el programa**, las caches y el entorno virtual no. Los secretos (`.env`) nunca.
 
+[⬆ Volver al índice](#índice)
+
+
 ---
 
 ## JSON: guardar y leer datos
@@ -215,6 +266,9 @@ with open("registros.jsonl", "r", encoding="utf-8") as f:
             pass                # línea dañada: se salta y se sigue con la siguiente
 ```
 
+[⬆ Volver al índice](#índice)
+
+
 ---
 
 ## Manejo de errores aplicado
@@ -251,6 +305,9 @@ while os.path.exists(nombre):
     nombre = f"datos_danado_{numero}.json"
 ```
 
+[⬆ Volver al índice](#índice)
+
+
 ---
 
 ## Buenas prácticas de código
@@ -285,6 +342,9 @@ Para obtener una copia independiente, incluso con diccionarios dentro de diccion
 - Una función que solo **hace algo** (escribir en un archivo, imprimir) devuelve `None`.
 - **Error típico:** guardar en una variable lo que devuelve una función que no devuelve nada (`x = guardar(m)`): `x` vale `None`.
 - Un `return` **dentro** de un `while` o `for` corta la función en ese instante; un `return` **después** del bucle solo corre cuando el bucle termina solo.
+
+[⬆ Volver al índice](#índice)
+
 
 ---
 
@@ -373,6 +433,9 @@ Un diccionario dentro de otro se lee con un par de corchetes por nivel: `datos["
 | `datetime.now().isoformat(timespec="seconds")` | La fecha y hora actual como texto: `"2026-10-22T08:26:31"` (con `from datetime import datetime`). |
 | `copy.deepcopy(obj)` | Copia independiente de un objeto, a todos los niveles. |
 
+[⬆ Volver al índice](#índice)
+
+
 ---
 
 ## Type hints y mypy
@@ -417,6 +480,9 @@ Con `-> dict` en una función que olvidó el `return`, `mypy` detecta al instant
 
 **Después de instalar o quitar una librería:** `pip freeze > requirements.txt` actualiza la lista (`pip freeze` imprime las librerías instaladas con su versión exacta, `nombre==versión`; `>` escribe esa salida dentro del archivo en vez de mostrarla en pantalla).
 
+[⬆ Volver al índice](#índice)
+
+
 ---
 
 ## Estilo de código (PEP 8)
@@ -426,6 +492,9 @@ Con `-> dict` en una función que olvidó el `return`, `mypy` detecta al instant
 - En argumentos con nombre, sin espacios alrededor del `=`: `encoding="utf-8"`.
 - Sin espacios sobrantes al final de las líneas ni líneas vacías de más al final del archivo.
 - Nombres que dicen lo que guardan: `texto_sin_tildes`, no `letras_tilde`.
+
+[⬆ Volver al índice](#índice)
+
 
 ## Decoradores
 
@@ -510,30 +579,33 @@ Anotar tipos en un decorador requiere herramientas más avanzadas (`Callable`, `
 
 Si un archivo que se va a importar (como `utilidades.py`) tiene código de prueba suelto (por ejemplo un `print(...)` al final), ese código **se ejecuta cada vez que alguien lo importa**. Las pruebas se borran o se dejan dentro de `if __name__ == "__main__":`.
 
+[⬆ Volver al índice](#índice)
+
+
 # Bases de datos: SQL, SQLite y Python
 
 Referencia del módulo. Los ejemplos se probaron con SQLite 3.45. Cuando una función exige una versión reciente de SQLite, se indica junto a ella.
 
 Contenido:
 
-1. Conceptos básicos
-2. Tipos de datos en SQLite
-3. Crear y modificar tablas (DDL)
-4. Insertar, actualizar y borrar (DML)
-5. Consultar con SELECT
-6. JOIN: unir tablas
-7. Agregaciones y GROUP BY
-8. Subconsultas, operaciones de conjuntos, CTE y vistas
-9. Diseño de bases de datos
-10. Índices
-11. Transacciones
-12. PRAGMA, sqlite_master y la consola de SQLite
-13. Python con sqlite3
-14. SQLAlchemy (ORM)
-15. NoSQL y otras bases de datos
-16. Diferencias entre motores
-17. Chuleta: errores y buenas prácticas
-18. Dónde profundizar
+1. [Conceptos básicos](#1-conceptos-básicos)
+2. [Tipos de datos en SQLite](#2-tipos-de-datos-en-sqlite)
+3. [Crear y modificar tablas (DDL)](#3-crear-y-modificar-tablas-ddl)
+4. [Insertar, actualizar y borrar (DML)](#4-insertar-actualizar-y-borrar-dml)
+5. [Consultar con SELECT](#5-consultar-con-select)
+6. [JOIN: unir tablas](#6-join-unir-tablas)
+7. [Agregaciones y GROUP BY](#7-agregaciones-y-group-by)
+8. [Subconsultas, operaciones de conjuntos, CTE y vistas](#8-subconsultas-operaciones-de-conjuntos-cte-y-vistas)
+9. [Diseño de bases de datos](#9-diseño-de-bases-de-datos)
+10. [Índices](#10-índices)
+11. [Transacciones](#11-transacciones)
+12. [PRAGMA, sqlite_master y la consola de SQLite](#12-pragma-sqlite_master-y-la-consola-de-sqlite)
+13. [Python con sqlite3](#13-python-con-sqlite3)
+14. [SQLAlchemy (ORM)](#14-sqlalchemy-orm)
+15. [NoSQL y otras bases de datos](#15-nosql-y-otras-bases-de-datos)
+16. [Diferencias entre motores](#16-diferencias-entre-motores)
+17. [Chuleta: errores y buenas prácticas](#17-chuleta-errores-y-buenas-prácticas)
+18. [Dónde profundizar](#18-dónde-profundizar)
 
 ---
 
@@ -569,6 +641,9 @@ Contenido:
 - Las palabras clave no distinguen mayúsculas (`select` = `SELECT`). La convención es escribirlas en mayúsculas y los nombres de tablas y columnas en minúsculas con guion bajo (`fecha_vencimiento`).
 - En SQLite, comparar texto con `=` **sí distingue mayúsculas**: `'a' = 'A'` es falso. `LIKE` no las distingue (con letras ASCII). Con `COLLATE NOCASE` se ignoran las mayúsculas: `WHERE nombre = 'ana' COLLATE NOCASE`.
 
+[⬆ Volver al índice](#índice)
+
+
 ---
 
 ## 2. Tipos de datos en SQLite
@@ -597,6 +672,9 @@ SQLite guarda cinco clases de valores:
 - `= NULL` **nunca** da verdadero. Se pregunta con `IS NULL` / `IS NOT NULL`.
 - Cualquier operación con `NULL` da `NULL`: `5 + NULL` es `NULL`.
 - Las funciones de agregación ignoran los `NULL` (salvo `COUNT(*)`).
+
+[⬆ Volver al índice](#índice)
+
 
 ---
 
@@ -668,6 +746,9 @@ ALTER TABLE socios RENAME TO miembros;
 - `IF NOT EXISTS` / `IF EXISTS` evitan el error al crear algo que ya existe o borrar algo que no existe. Un script con `DROP TABLE IF EXISTS` al inicio se puede ejecutar completo las veces que quieras.
 - Cambiar el tipo o las restricciones de una columna existente no se puede con `ALTER` en SQLite: se crea una tabla nueva, se copian los datos y se borra la vieja.
 
+[⬆ Volver al índice](#índice)
+
+
 ---
 
 ## 4. Insertar, actualizar y borrar (DML)
@@ -731,6 +812,9 @@ DELETE FROM socios;          -- vacía la tabla (la tabla sigue existiendo)
 | `DELETE FROM t` | Borra los datos, la tabla queda |
 | `DROP TABLE t` | Borra la tabla completa (estructura y datos) |
 | `TRUNCATE` | No existe en SQLite (en otros motores vacía la tabla rápido) |
+
+[⬆ Volver al índice](#índice)
+
 
 ---
 
@@ -860,6 +944,9 @@ SELECT NULLIF(telefono, '') FROM socios;                 -- devuelve NULL si es 
 
 Cuidado con las fechas inexistentes: `date('2026-11-31')` devuelve en silencio `2026-12-01` (noviembre tiene 30 días). Python, en cambio, lanza `ValueError`. Los meses con 31 días son enero, marzo, mayo, julio, agosto, octubre y diciembre.
 
+[⬆ Volver al índice](#índice)
+
+
 ---
 
 ## 6. JOIN: unir tablas
@@ -903,6 +990,9 @@ WHERE p.id IS NULL;      -- socios sin plan válido
 - **Trampa:** si usas un `LEFT JOIN` y filtras en el `WHERE` una columna de la tabla de la derecha (`WHERE p.precio > 0`), las filas sin pareja (con `NULL`) se eliminan y el `LEFT` se comporta como `INNER`. Para filtrar solo la tabla de la derecha sin perder filas, pon la condición en el `ON`.
 - **Varios JOIN:** se encadenan: `FROM a JOIN b ON ... JOIN c ON ...`.
 - **Auto-join:** una tabla unida consigo misma (por ejemplo empleados y su jefe, que también es empleado), con dos apodos distintos.
+
+[⬆ Volver al índice](#índice)
+
 
 ---
 
@@ -995,6 +1085,9 @@ WHERE s.activo = 1
 GROUP BY p.nombre;
 ```
 
+[⬆ Volver al índice](#índice)
+
+
 ---
 
 ## 8. Subconsultas, operaciones de conjuntos, CTE y vistas
@@ -1072,6 +1165,9 @@ FROM socios;
 
 Otras: `RANK()`, `DENSE_RANK()`, `LAG()`, `LEAD()`, `SUM() OVER (...)`.
 
+[⬆ Volver al índice](#índice)
+
+
 ---
 
 ## 9. Diseño de bases de datos
@@ -1123,6 +1219,9 @@ Es el plano antes de construir: **entidades** (futuras tablas), **atributos** (c
 - Guarda las fechas en formato ISO. Usa `NOT NULL` en lo obligatorio, `UNIQUE` en lo que no se debe repetir y `CHECK` para reglas simples.
 - Antes de crear una tabla, pregúntate: ¿qué entidad es?, ¿cuál es su identificador?, ¿qué relaciones tiene?, ¿hay datos repetidos que deberían estar en otra tabla?
 
+[⬆ Volver al índice](#índice)
+
+
 ---
 
 ## 10. Índices
@@ -1142,6 +1241,9 @@ DROP INDEX idx_socios_vencimiento;
 - Un índice compuesto `(a, b)` sirve para buscar por `a` o por `a` y `b`, pero no solo por `b`.
 - No ayudan: `LIKE '%texto'` (comodín al inicio) ni aplicar una función a la columna (`WHERE date(fecha) = ...`).
 - Para comprobar si se usa: `EXPLAIN QUERY PLAN SELECT ...;`. `SEARCH ... USING INDEX` es bueno; `SCAN tabla` significa que lee toda la tabla.
+
+[⬆ Volver al índice](#índice)
+
 
 ---
 
@@ -1170,6 +1272,9 @@ Propiedades **ACID**:
 - SQLite permite **un solo escritor a la vez**: si otra conexión está escribiendo, aparece `database is locked`.
 - `SAVEPOINT nombre` / `ROLLBACK TO nombre` permiten puntos de retorno dentro de una transacción.
 
+[⬆ Volver al índice](#índice)
+
+
 ---
 
 ## 12. PRAGMA, sqlite_master y la consola de SQLite
@@ -1195,6 +1300,9 @@ Consola `sqlite3` (se abre con `sqlite3 gimnasio.db`):
 | `.quit` | Salir |
 
 Atajos de DB Browser for SQLite: `Ctrl+Enter` ejecuta todo (o solo lo seleccionado), `Shift+F5` ejecuta la línea actual, `Ctrl+T` abre una pestaña SQL nueva, `Ctrl+S` guarda los cambios en la base (Write Changes).
+
+[⬆ Volver al índice](#índice)
+
 
 ---
 
@@ -1368,6 +1476,9 @@ Ideas de este ejemplo: la lógica de acceso a datos vive en funciones propias (n
 
 Para una aplicación web, usa una conexión por petición (no compartas una conexión entre hilos).
 
+[⬆ Volver al índice](#índice)
+
+
 ---
 
 ## 14. SQLAlchemy (ORM)
@@ -1438,6 +1549,9 @@ with Session(engine) as session:
 
 Cuándo usarlo: proyectos web o con muchas tablas. Para scripts pequeños, `sqlite3` es más simple. Conviene entender SQL antes, porque el ORM lo genera por ti y necesitas saber qué está pasando.
 
+[⬆ Volver al índice](#índice)
+
+
 ---
 
 ## 15. NoSQL y otras bases de datos
@@ -1455,6 +1569,9 @@ Cuándo usarlo: proyectos web o con muchas tablas. Para scripts pequeños, `sqli
 - Relacional: estructura fija, integridad fuerte, transacciones y consultas complejas con `JOIN`. Es la opción por defecto.
 - NoSQL: flexibilidad y escala horizontal, a cambio de menos garantías. Muchos proyectos usan varias a la vez (PostgreSQL + Redis).
 
+[⬆ Volver al índice](#índice)
+
+
 ---
 
 ## 16. Diferencias entre motores
@@ -1470,6 +1587,9 @@ Cuándo usarlo: proyectos web o con muchas tablas. Para scripts pequeños, `sqli
 | `LIKE` sin mayúsculas | Por defecto | `ILIKE` | Depende de la configuración (collation) |
 | Entrecomillar nombres | `"nombre"` | `"nombre"` | `[nombre]` |
 | Acceso | Archivo local | Servidor con usuarios | Servidor con usuarios |
+
+[⬆ Volver al índice](#índice)
+
 
 ---
 
@@ -1520,6 +1640,9 @@ Cuándo usarlo: proyectos web o con muchas tablas. Para scripts pequeños, `sqli
 - Pide solo las columnas que necesitas y filtra en la base, no en Python.
 - Los datos de práctica que subas a un repositorio público deben ser inventados (nada de teléfonos o nombres reales).
 
+[⬆ Volver al índice](#índice)
+
+
 ---
 
 ## 18. Dónde profundizar
@@ -1528,6 +1651,9 @@ Cuándo usarlo: proyectos web o con muchas tablas. Para scripts pequeños, `sqli
 - Módulo `sqlite3` de Python: https://docs.python.org/3/library/sqlite3.html
 - SQLAlchemy: https://docs.sqlalchemy.org
 - Práctica de SQL interactiva: https://sqlbolt.com y https://sqlzoo.net
+
+[⬆ Volver al índice](#índice)
+
 
 
 ---
@@ -1621,6 +1747,9 @@ with open("datos.jsonl", "r", encoding="utf-8") as f:
             ...                        # línea dañada: contarla y seguir
 ```
 
+[⬆ Volver al índice](#índice)
+
+
 ## 2. SQLite: lo que se suma
 
 - `SELECT COUNT(*) FROM tabla WHERE col = ?` devuelve **una fila con un número**. Con `row_factory = sqlite3.Row` se lee así: `conexion.execute(sql, (valor,)).fetchone()[0]`.
@@ -1630,6 +1759,9 @@ with open("datos.jsonl", "r", encoding="utf-8") as f:
 - Los parámetros de `?` van en una **tupla**; con un solo valor lleva coma: `(x,)`.
 - Nunca armes SQL con f-strings (inyección SQL): usa `?`.
 
+[⬆ Volver al índice](#índice)
+
+
 ## 3. Patrón de migración de datos
 1. **No pisar nada:** si el destino ya existe, detenerse.
 2. **Respaldo** de los archivos de origen antes de tocar algo.
@@ -1637,6 +1769,9 @@ with open("datos.jsonl", "r", encoding="utf-8") as f:
 4. **Copiar** los datos conservando lo importante (por ejemplo, las fechas originales), contando los registros buenos y los inválidos.
 5. **Verificar:** comparar lo que se migró con lo que realmente quedó en el destino (`COUNT(*)`).
 6. Los originales **no se modifican**: si algo falla, se borra el destino y se repite.
+
+[⬆ Volver al índice](#índice)
+
 
 ## 4. Git y GitHub: ramas, pull request y etiquetas
 
@@ -1669,6 +1804,9 @@ with open("datos.jsonl", "r", encoding="utf-8") as f:
 
 **`.gitignore`:** lo que no debe subirse (bases de datos `*.db`, entornos virtuales, cachés, datos personales). Revisa siempre `git status` y la pestaña *Files changed* antes de fusionar.
 
+[⬆ Volver al índice](#índice)
+
+
 ## 5. Documentar un proyecto
 
 **`CHANGELOG.md`:** versiones nuevas **arriba**; cada una con secciones `### Añadido`, `### Cambiado`, `### Limitaciones conocidas`.
@@ -1682,6 +1820,9 @@ with open("datos.jsonl", "r", encoding="utf-8") as f:
 
 **Markdown básico:** `#` títulos, `-` listas, `` `código` `` en línea, bloques con tres comillas invertidas, tablas con `|`. Vista previa en VS Code: `Ctrl + Shift + V`.
 
+[⬆ Volver al índice](#índice)
+
+
 ## 6. Calidad de código
 ```bash
 ruff check              # errores de estilo y de código
@@ -1691,6 +1832,9 @@ ruff format             # aplica el formato
 mypy .                  # revisa los type hints en todo el proyecto
 ```
 - Imports en orden alfabético (`I001`), dos líneas en blanco entre funciones de nivel superior, sin espacios sobrantes al final de línea.
+
+[⬆ Volver al índice](#índice)
+
 
 ## 7. Errores comunes de este módulo
 
@@ -1704,6 +1848,9 @@ mypy .                  # revisa los type hints en todo el proyecto
 | `fetchall()` vacío la segunda vez | un cursor se consume al recorrerlo; guarda la lista |
 | `FOREIGN KEY constraint failed` | falta el registro padre, o falta `PRAGMA foreign_keys = ON` en esa conexión |
 | `json.load` falla con `.jsonl` | no es un solo JSON: recorrer línea por línea con `json.loads` |
+
+[⬆ Volver al índice](#índice)
+
 
 ---
 
