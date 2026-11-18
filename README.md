@@ -63,6 +63,22 @@ Desde fundamentos hasta proyectos backend reales (POO, bases de datos, APIs, aut
     - [6. Pruebas con pytest](#6-pruebas-con-pytest)
     - [7. Herramientas y Git (APIs)](#7-herramientas-y-git-apis)
     - [8. Errores comunes de este módulo (APIs)](#8-errores-comunes-de-este-módulo-apis)
+- [LLMs desde Python: async, httpx y APIs de IA](#llms-desde-python-async-httpx-y-apis-de-ia)
+  - [1. Programación asíncrona: qué problema resuelve](#1-programación-asíncrona-qué-problema-resuelve)
+  - [2. async, await y asyncio](#2-async-await-y-asyncio)
+  - [3. Async en FastAPI: def vs async def](#3-async-en-fastapi-def-vs-async-def)
+  - [4. httpx: peticiones HTTP desde Python](#4-httpx-peticiones-http-desde-python)
+  - [5. Variables de entorno y archivos .env](#5-variables-de-entorno-y-archivos-env)
+  - [6. Cómo funciona un LLM por API](#6-cómo-funciona-un-llm-por-api)
+  - [7. Tokens, contexto y costos](#7-tokens-contexto-y-costos)
+  - [8. Usar un LLM desde Python (SDK)](#8-usar-un-llm-desde-python-sdk)
+  - [9. Prompts: system, historial y ejemplos](#9-prompts-system-historial-y-ejemplos)
+  - [10. Streaming: respuestas en tiempo real](#10-streaming-respuestas-en-tiempo-real)
+  - [11. Errores, reintentos y límites](#11-errores-reintentos-y-límites)
+  - [12. Seguridad con LLMs](#12-seguridad-con-llms)
+  - [13. logging: registrar lo que pasa](#13-logging-registrar-lo-que-pasa)
+  - [14. Probar código que usa un LLM](#14-probar-código-que-usa-un-llm)
+  - [15. Errores comunes con LLMs](#15-errores-comunes-con-llms)
 
 ---
 
@@ -2532,6 +2548,593 @@ def test_algo(cliente: TestClient) -> None:
 | Raya sobre un decorador | algo *deprecated* | pasar el mouse y leer el mensaje |
 | Variable con el nombre de la función | la tapa dentro de la función | usar otro nombre |
 | `return HTTPException(...)` | se lanza, no se devuelve | usar `raise` |
+
+---
+
+# LLMs desde Python: async, httpx y APIs de IA
+
+Contenido:
+
+1. [Programación asíncrona: qué problema resuelve](#1-programación-asíncrona-qué-problema-resuelve)
+2. [async, await y asyncio](#2-async-await-y-asyncio)
+3. [Async en FastAPI: def vs async def](#3-async-en-fastapi-def-vs-async-def)
+4. [httpx: peticiones HTTP desde Python](#4-httpx-peticiones-http-desde-python)
+5. [Variables de entorno y archivos .env](#5-variables-de-entorno-y-archivos-env)
+6. [Cómo funciona un LLM por API](#6-cómo-funciona-un-llm-por-api)
+7. [Tokens, contexto y costos](#7-tokens-contexto-y-costos)
+8. [Usar un LLM desde Python (SDK)](#8-usar-un-llm-desde-python-sdk)
+9. [Prompts: system, historial y ejemplos](#9-prompts-system-historial-y-ejemplos)
+10. [Streaming: respuestas en tiempo real](#10-streaming-respuestas-en-tiempo-real)
+11. [Errores, reintentos y límites](#11-errores-reintentos-y-límites)
+12. [Seguridad con LLMs](#12-seguridad-con-llms)
+13. [logging: registrar lo que pasa](#13-logging-registrar-lo-que-pasa)
+14. [Probar código que usa un LLM](#14-probar-código-que-usa-un-llm)
+15. [Errores comunes con LLMs](#15-errores-comunes-con-llms)
+
+---
+
+## 1. Programación asíncrona: qué problema resuelve
+
+Hay dos tipos de trabajo lento:
+
+| Tipo | Qué lo frena | Ejemplos |
+|---|---|---|
+| **De CPU** | el procesador está calculando | ordenar millones de datos, entrenar un modelo |
+| **De espera (I/O)** | el programa espera una respuesta de afuera | pedirle algo a una API por internet, leer un archivo grande, consultar una base de datos |
+
+Una llamada a un LLM es **de espera**: tu programa manda el mensaje y se queda segundos esperando la respuesta. Durante ese tiempo, el procesador no hace nada.
+
+**Analogía:** en la tienda llamas al proveedor y te dicen "espere en línea".
+- **Síncrono:** te quedas pegado al teléfono y la fila de clientes no avanza.
+- **Asíncrono:** dejas el teléfono en altavoz, atiendes a los clientes y, cuando el proveedor vuelve, retomas la llamada.
+
+La programación asíncrona **no** hace más rápido cada trabajo; evita que el programa se quede quieto mientras espera. Para un servidor con muchos usuarios esperando respuestas de un LLM, esa es la diferencia entre atender a uno o a cientos a la vez.
+
+[⬆ Volver al índice](#índice)
+
+---
+
+## 2. async, await y asyncio
+
+```python
+import asyncio
+
+
+async def tarea(nombre: str, segundos: float) -> str:
+    print(f"empieza {nombre}")
+    await asyncio.sleep(segundos)      # espera SIN bloquear
+    print(f"termina {nombre}")
+    return nombre
+
+
+async def main() -> None:
+    resultado = await tarea("A", 1)                       # una sola
+    resultados = await asyncio.gather(                    # varias a la vez
+        tarea("B", 2),
+        tarea("C", 2),
+    )
+    print(resultado, resultados)
+
+
+asyncio.run(main())
+```
+
+| Pieza | Qué hace |
+|---|---|
+| `async def` | define una **corrutina**: una función que se puede pausar |
+| `await algo` | pausa aquí hasta que `algo` termine; mientras, el programa atiende otras tareas |
+| `asyncio.run(main())` | arranca el "bucle de eventos" (*event loop*) y ejecuta `main` |
+| `asyncio.gather(a, b)` | ejecuta varias corrutinas **al mismo tiempo** y espera a todas |
+| `asyncio.sleep(s)` | espera `s` segundos sin bloquear (`time.sleep` sí bloquea) |
+| `asyncio.to_thread(funcion, args)` | corre una función **normal y lenta** en otro hilo, para no bloquear |
+
+En el ejemplo, B y C tardan 2 segundos cada una, pero con `gather` tardan **2 en total**, no 4.
+
+**Reglas:**
+- `await` solo se puede usar dentro de un `async def`.
+- Llamar `tarea("A", 1)` sin `await` **no ejecuta nada**: solo crea la corrutina. Python avisa con `RuntimeWarning: coroutine was never awaited`.
+- Dentro de un `async def`, nunca uses algo que bloquee (`time.sleep`, `requests`, `sqlite3`) sin `asyncio.to_thread`, porque congela **todo** el programa.
+
+**Equivalente en C#:** `async Task<string> Tarea()` y `await Tarea()`. La idea es la misma.
+
+[⬆ Volver al índice](#índice)
+
+---
+
+## 3. Async en FastAPI: def vs async def
+
+FastAPI acepta rutas de los dos tipos, y las ejecuta distinto:
+
+| Ruta | Dónde corre | Úsala cuando |
+|---|---|---|
+| `def ruta()` | en un **hilo aparte** (FastAPI lo hace solo) | el código adentro es normal o bloqueante: `sqlite3`, `requests`, librerías sin async |
+| `async def ruta()` | en el **bucle de eventos** | el código adentro usa `await`: `httpx.AsyncClient`, SDK async de un LLM |
+
+**El error más común:** escribir `async def` y adentro llamar algo bloqueante.
+
+```python
+@app.post("/chat")
+async def chat(...):
+    datos = cargar_memoria(conexion)   # sqlite3 es bloqueante → congela TODA la API
+```
+
+**Opciones correctas:**
+
+```python
+# Opción 1: ruta normal + cliente normal (todo síncrono, FastAPI lo pone en un hilo)
+@app.post("/chat")
+def chat(...):
+    datos = cargar_memoria(conexion)
+    texto = cliente_llm.generar(...)          # cliente síncrono
+
+
+# Opción 2: ruta async + lo bloqueante en un hilo
+@app.post("/chat")
+async def chat(...):
+    datos = await asyncio.to_thread(cargar_memoria, conexion)
+    texto = await cliente_llm_async.generar(...)   # cliente async
+```
+
+Regla práctica: si no sabes, usa `def`. Usa `async def` solo cuando **todo** lo lento de la ruta tenga `await`.
+
+[⬆ Volver al índice](#índice)
+
+---
+
+## 4. httpx: peticiones HTTP desde Python
+
+`httpx` es la librería para que **tu programa** haga peticiones HTTP (como hace el navegador o `/docs`). Ya viene con `fastapi[standard]`.
+
+```python
+import httpx
+
+# Síncrono
+respuesta = httpx.get("https://api.ejemplo.com/datos", params={"limite": 5}, timeout=10)
+respuesta = httpx.post(
+    "https://api.ejemplo.com/crear",
+    json={"nombre": "Arroz"},
+    headers={"Authorization": "Bearer TOKEN"},
+    timeout=10,
+)
+
+respuesta.status_code        # 200, 404...
+respuesta.json()             # cuerpo → objeto Python (como json.loads)
+respuesta.text               # cuerpo como texto
+respuesta.raise_for_status() # lanza httpx.HTTPStatusError si el código es 4xx o 5xx
+```
+
+**Con un cliente reutilizable** (más eficiente cuando haces muchas peticiones al mismo servidor):
+
+```python
+with httpx.Client(base_url="https://api.ejemplo.com", timeout=10) as cliente:
+    r1 = cliente.get("/datos")
+    r2 = cliente.post("/crear", json={...})
+```
+
+**Asíncrono:**
+
+```python
+async with httpx.AsyncClient(timeout=10) as cliente:
+    respuesta = await cliente.get("https://api.ejemplo.com/datos")
+```
+
+| Argumento | Para qué |
+|---|---|
+| `params=` | parámetros de la URL (`?limite=5`) |
+| `json=` | cuerpo JSON |
+| `headers=` | cabeceras (por ejemplo, la clave de la API) |
+| `timeout=` | segundos máximos de espera; **siempre** ponlo |
+
+Excepciones: `httpx.TimeoutException` (tardó demasiado), `httpx.ConnectError` (no hay conexión), `httpx.HTTPStatusError` (de `raise_for_status`).
+
+Recordatorio de `json`: `load` (archivo → objeto), `loads` (texto → objeto), `dump` (objeto → archivo), `dumps` (objeto → texto). `respuesta.json()` equivale a `json.loads(respuesta.text)`.
+
+[⬆ Volver al índice](#índice)
+
+---
+
+## 5. Variables de entorno y archivos .env
+
+Una **variable de entorno** es un valor de configuración que vive **fuera del código**, en el sistema donde corre el programa. Se usa para:
+- **secretos** (claves de API, contraseñas): nunca deben estar en el código ni en GitHub;
+- **valores que cambian según dónde corre la app** (tu PC, el servidor): orígenes de CORS, ruta de la base de datos.
+
+**Leerlas con `os`:**
+
+```python
+import os
+
+clave = os.environ["MI_CLAVE"]              # KeyError si no existe
+modelo = os.getenv("MODELO", "por-defecto") # None o el valor por defecto si no existe
+```
+
+**Archivo `.env`** (en la carpeta del proyecto):
+
+```
+MI_CLAVE=sk-abc123
+MODELO=nombre-del-modelo
+```
+
+- Sin espacios alrededor del `=` y sin comillas, salvo que el valor tenga espacios.
+- **Va en `.gitignore`, siempre.**
+- Se sube un `.env.example` con los nombres y valores falsos, para que otros sepan qué variables hacen falta.
+
+**Opción 1: `python-dotenv`** (`pip install python-dotenv`):
+
+```python
+from dotenv import load_dotenv
+
+load_dotenv()                      # copia lo del .env a las variables de entorno
+clave = os.environ["MI_CLAVE"]
+```
+
+**Opción 2: `pydantic-settings`** (`pip install pydantic-settings`), con validación y tipos:
+
+```python
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Configuracion(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env")
+
+    mi_clave: str                     # obligatoria: falla al arrancar si no está
+    modelo: str = "por-defecto"
+    max_tokens: int = 500             # convierte el texto "500" a int
+
+
+configuracion = Configuracion()
+```
+
+Lee `MI_CLAVE` y la guarda en `mi_clave` (no distingue mayúsculas). Si falta una obligatoria, el programa falla **al arrancar**, con un mensaje claro, y no a mitad de una petición.
+
+**Si una clave se sube a GitHub por error:** borrarla del archivo **no basta** (queda en el historial). Hay que **revocarla** en el panel del proveedor y crear una nueva.
+
+[⬆ Volver al índice](#índice)
+
+---
+
+## 6. Cómo funciona un LLM por API
+
+Un **LLM** (*Large Language Model*) es una red neuronal entrenada para **predecir el siguiente pedazo de texto**. Repitiendo esa predicción, escribe respuestas completas.
+
+Usarlo por API es una petición HTTP como cualquier otra:
+
+```
+Tu servidor  ──POST (mensajes + clave)──▶  Servidor del proveedor (el modelo)
+             ◀──── JSON (respuesta) ─────
+```
+
+**Lo más importante: el modelo no tiene memoria entre peticiones.** Es *stateless*. Si quieres que "recuerde" la conversación, en **cada** petición le mandas el historial completo.
+
+**Roles de los mensajes:**
+
+| Rol | Quién habla | Para qué |
+|---|---|---|
+| `system` | tú, el programador | personalidad, reglas y contexto del asistente |
+| `user` | el usuario | lo que pregunta |
+| `assistant` | el modelo | lo que respondió antes (se reenvía como historial) |
+
+```python
+mensajes = [
+    {"role": "user", "content": "Hola, me llamo Ana"},
+    {"role": "assistant", "content": "¡Hola Ana! ¿En qué te ayudo?"},
+    {"role": "user", "content": "¿Cómo me llamo?"},
+]
+```
+
+El modelo responde "Ana" porque lo leyó **en esta misma petición**, no porque lo recuerde.
+
+**Parámetros comunes:**
+
+| Parámetro | Qué controla |
+|---|---|
+| `model` | qué modelo usar (más grande = mejor y más caro; más pequeño = más rápido y barato) |
+| `max_tokens` | largo máximo de la respuesta |
+| `temperature` | aleatoriedad: baja (0–0.3) = respuestas consistentes; alta (0.8–1) = más creativas |
+| `system` | las instrucciones de sistema |
+| `stop_sequences` | textos que, si aparecen, cortan la respuesta |
+
+**Proveedores:** Anthropic (Claude), OpenAI (GPT), Google (Gemini) y modelos abiertos (Llama, Qwen, Mistral) que se pueden correr en un servidor propio. Todos funcionan con la misma idea; cambian los nombres de los campos. Lee siempre la documentación oficial del que uses, incluidos sus **términos de uso**.
+
+[⬆ Volver al índice](#índice)
+
+---
+
+## 7. Tokens, contexto y costos
+
+**Token:** el pedazo de texto con el que trabaja el modelo. Puede ser una palabra, parte de una palabra o un signo. Como referencia, en inglés un token es unos 4 caracteres; en español suelen hacer falta algo más de tokens para el mismo texto.
+
+**Ventana de contexto:** el máximo de tokens que el modelo puede leer **en una petición** (system + historial + mensaje nuevo + respuesta). Si la conversación crece más que eso, hay que recortarla.
+
+**Costo:** se paga **por token**, normalmente con un precio distinto para la **entrada** (lo que mandas) y la **salida** (lo que genera). Como reenvías el historial en cada mensaje, **las conversaciones largas cuestan cada vez más**.
+
+```
+costo = tokens_entrada × precio_entrada + tokens_salida × precio_salida
+```
+
+Los precios se publican por millón de tokens y cambian; consúltalos en la página del proveedor.
+
+**Cómo controlar el gasto:**
+1. `max_tokens` siempre definido.
+2. Mandar solo los **últimos N** mensajes del historial, no todo.
+3. Usar un modelo pequeño para tareas simples.
+4. Límite de mensajes por usuario y por día.
+5. Tope de gasto mensual en el panel del proveedor.
+6. Registrar los tokens de cada respuesta (la API los devuelve en `usage`).
+
+[⬆ Volver al índice](#índice)
+
+---
+
+## 8. Usar un LLM desde Python (SDK)
+
+Un **SDK** es una librería oficial que el proveedor hace para su API: arma las peticiones HTTP por ti, maneja reintentos y te da tipos para `mypy`. Ejemplo con el SDK de Anthropic (`pip install anthropic`):
+
+```python
+from anthropic import Anthropic
+
+cliente = Anthropic()   # lee la clave de la variable de entorno ANTHROPIC_API_KEY
+
+respuesta = cliente.messages.create(
+    model="nombre-del-modelo",
+    max_tokens=500,
+    system="Eres un asistente amable que responde en español.",
+    messages=[{"role": "user", "content": "Hola"}],
+)
+
+for bloque in respuesta.content:
+    if bloque.type == "text":
+        print(bloque.text)
+
+print(respuesta.usage.input_tokens, respuesta.usage.output_tokens)
+print(respuesta.stop_reason)   # "end_turn" (terminó) o "max_tokens" (se cortó)
+```
+
+| Pieza | Qué es |
+|---|---|
+| `Anthropic()` / `AsyncAnthropic()` | cliente síncrono / asíncrono |
+| `messages.create(...)` | manda la petición y espera la respuesta completa |
+| `respuesta.content` | lista de **bloques**; los de texto tienen `.type == "text"` y `.text` |
+| `respuesta.usage` | tokens de entrada y de salida (para costos) |
+| `respuesta.stop_reason` | por qué terminó |
+
+**Asíncrono:**
+
+```python
+from anthropic import AsyncAnthropic
+
+cliente = AsyncAnthropic()
+respuesta = await cliente.messages.create(model=..., max_tokens=..., messages=...)
+```
+
+- Crea el cliente **una vez** (constante de módulo, `lifespan` o dependencia), no en cada petición.
+- El nombre exacto del modelo se toma de la documentación del proveedor y conviene ponerlo en el `.env`, para cambiarlo sin tocar el código.
+- Se revisa `bloque.type` porque `content` puede traer bloques que no son texto (por ejemplo, uso de herramientas); `mypy` lo exige.
+- Otros proveedores tienen SDKs parecidos (por ejemplo, `openai`), con otros nombres de métodos y campos.
+
+[⬆ Volver al índice](#índice)
+
+---
+
+## 9. Prompts: system, historial y ejemplos
+
+El **prompt** es todo lo que le mandas al modelo. Escribirlo bien es la forma más barata de mejorar las respuestas.
+
+**Prompt de sistema:** define quién es el asistente y sus reglas.
+
+```python
+SYSTEM = """Eres Lumi, un asistente de estudio.
+- Respondes siempre en español, claro y breve.
+- Si no sabes algo, lo dices; no inventas.
+- No das datos personales de nadie.
+El usuario se llama {nombre}."""
+
+system = SYSTEM.format(nombre="Ana")
+```
+
+**Buenas prácticas:**
+- Instrucciones concretas y positivas ("responde en 3 frases") mejor que vagas ("no seas largo").
+- Datos que el modelo necesita **dentro** del prompt (nombre del usuario, fecha, datos de la base de datos).
+- **Ejemplos** de pregunta → respuesta ideal (*few-shot*) cuando quieres un formato exacto.
+- Separar las partes con etiquetas o títulos (`<datos>...</datos>`).
+
+**Historial como contexto:**
+
+```python
+def armar_mensajes(historial: list[dict], mensaje: str, limite: int = 10) -> list[dict]:
+    mensajes = []
+    for intercambio in historial[-limite:]:
+        mensajes.append({"role": "user", "content": intercambio["mensaje"]})
+        mensajes.append({"role": "assistant", "content": intercambio["respuesta"]})
+    mensajes.append({"role": "user", "content": mensaje})
+    return mensajes
+```
+
+Los mensajes deben **alternar** `user` / `assistant` y el último debe ser del `user`.
+
+[⬆ Volver al índice](#índice)
+
+---
+
+## 10. Streaming: respuestas en tiempo real
+
+Sin streaming, el usuario espera toda la respuesta (pueden ser varios segundos) y luego aparece de golpe. Con **streaming**, el texto llega en pedazos y se va mostrando mientras se genera, como en ChatGPT o Claude.
+
+**Desde el SDK:**
+
+```python
+async with cliente.messages.stream(model=..., max_tokens=..., messages=...) as stream:
+    async for texto in stream.text_stream:
+        print(texto, end="", flush=True)
+```
+
+- `async with`: abre el stream y lo cierra al terminar.
+- `async for`: recorre los pedazos a medida que llegan.
+
+**Desde FastAPI** (`StreamingResponse` con un generador):
+
+```python
+from collections.abc import AsyncIterator
+
+from fastapi.responses import StreamingResponse
+
+
+async def generar_texto(mensajes: list[dict]) -> AsyncIterator[str]:
+    async with cliente.messages.stream(model=..., max_tokens=..., messages=mensajes) as stream:
+        async for texto in stream.text_stream:
+            yield texto
+
+
+@app.post("/chat/stream")
+async def chat_stream(entrada: MensajeEntrada) -> StreamingResponse:
+    return StreamingResponse(generar_texto([...]), media_type="text/plain")
+```
+
+En el frontend, el JavaScript lee la respuesta por partes. Un formato estándar para esto es **SSE** (*Server-Sent Events*, `media_type="text/event-stream"`).
+
+Si guardas la respuesta en la base de datos, hazlo cuando el stream **termine**, con el texto completo.
+
+[⬆ Volver al índice](#índice)
+
+---
+
+## 11. Errores, reintentos y límites
+
+Una API externa **va a fallar** a veces. Hay que esperarlo.
+
+| Error | Causa | Qué hacer |
+|---|---|---|
+| Timeout / sin conexión | red lenta o caída | reintentar unas pocas veces |
+| `429` *rate limit* | demasiadas peticiones por minuto | esperar y reintentar |
+| `5xx` del proveedor | problema del lado de ellos | reintentar |
+| `400` | la petición está mal armada | **no** reintentar: corregir el código |
+| `401` | clave inválida o faltante | **no** reintentar: revisar el `.env` |
+
+**Reintento con espera exponencial (*backoff*):** esperar 1 s, luego 2 s, luego 4 s..., con un máximo de intentos. Los SDKs oficiales ya lo hacen para los errores que vale la pena reintentar:
+
+```python
+cliente = Anthropic(max_retries=3, timeout=30.0)
+```
+
+**Atrapar errores del SDK:**
+
+```python
+import anthropic
+
+try:
+    respuesta = cliente.messages.create(...)
+except anthropic.RateLimitError:
+    ...   # 429: demasiadas peticiones
+except anthropic.APIConnectionError:
+    ...   # sin conexión o timeout
+except anthropic.APIStatusError as error:
+    ...   # cualquier otro código de error: error.status_code
+```
+
+En una API propia, convierte esos errores en un `503` con un mensaje amable (con un `exception_handler`), y registra la causa en los logs.
+
+[⬆ Volver al índice](#índice)
+
+---
+
+## 12. Seguridad con LLMs
+
+- **La clave solo vive en el servidor.** Nunca en el frontend: cualquiera podría verla en el navegador y gastar a tu nombre.
+- **`.env` en `.gitignore`.** Si una clave se filtra, revócala.
+- **Prompt injection:** un usuario puede escribir "ignora tus instrucciones y...". No se elimina del todo, pero se reduce:
+  - no pongas secretos dentro del prompt;
+  - no le des al modelo acciones peligrosas sin confirmación;
+  - trata la respuesta del modelo como **datos no confiables**: valídala antes de usarla para algo importante.
+- **No muestres la respuesta como HTML** en el frontend sin escaparla (ataque XSS).
+- **Límites de uso** por usuario para evitar abusos y gastos.
+- **Privacidad:** lo que mandas al proveedor sale de tu servidor. Avisa a los usuarios y revisa la política de datos del proveedor.
+- **Datos para entrenar:** guardar conversaciones (con consentimiento) sirve para mejorar un modelo propio, pero revisa los **términos** del proveedor: varios prohíben usar sus respuestas para entrenar modelos que compitan con ellos.
+
+[⬆ Volver al índice](#índice)
+
+---
+
+## 13. logging: registrar lo que pasa
+
+`print` sirve para aprender, pero un servidor real usa el módulo `logging`, que agrega hora y nivel, y permite enviar los registros a un archivo o a un servicio.
+
+```python
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
+
+logger.debug("detalle para depurar")
+logger.info("Base de datos lista")
+logger.warning("El LLM tardó %s segundos", 8.2)
+logger.error("Falló la petición al LLM")
+logger.exception("Error inesperado")   # dentro de un except: incluye el traceback
+```
+
+| Nivel | Cuándo |
+|---|---|
+| `DEBUG` | detalles para desarrollar |
+| `INFO` | funcionamiento normal |
+| `WARNING` | algo raro, pero sigue funcionando |
+| `ERROR` | algo falló |
+
+- `getLogger(__name__)`: un logger por archivo, con el nombre del módulo.
+- Pasa los valores como argumentos (`"%s", valor`), no con f-string.
+- **Nunca** registres claves, contraseñas ni mensajes privados completos.
+
+[⬆ Volver al índice](#índice)
+
+---
+
+## 14. Probar código que usa un LLM
+
+Las pruebas **no** deben llamar al LLM real: cuesta dinero, es lento, necesita internet y responde distinto cada vez. Se reemplaza por un **falso** (*fake* o *mock*) que responde algo fijo.
+
+**Patrón: el cliente del LLM como dependencia.**
+
+```python
+# dependencias.py
+def obtener_llm() -> ClienteLLM:
+    return ClienteLLMReal()
+
+
+# test_api.py
+class LLMFalso:
+    def generar(self, mensajes: list[dict], system: str) -> str:
+        return "respuesta de prueba"
+
+
+app.dependency_overrides[obtener_llm] = lambda: LLMFalso()
+```
+
+Así pruebas **tu** lógica (que arme bien los mensajes, que guarde, que maneje errores) sin depender del proveedor. También puedes hacer un falso que **lance** un error para comprobar que tu API responde `503`.
+
+`lambda: valor` es una función de una línea sin nombre: `lambda: LLMFalso()` equivale a `def f(): return LLMFalso()`.
+
+[⬆ Volver al índice](#índice)
+
+---
+
+## 15. Errores comunes con LLMs
+
+| Error | Causa | Solución |
+|---|---|---|
+| `RuntimeWarning: coroutine ... was never awaited` | se llamó un `async def` sin `await` | agregar `await` |
+| La API se congela con varios usuarios | código bloqueante dentro de un `async def` | usar `def`, o `asyncio.to_thread` |
+| `401` del proveedor | falta la clave o está mal | revisar el `.env` y que se cargue |
+| `KeyError` al leer una variable de entorno | no está definida | `load_dotenv()` o `pydantic-settings` |
+| El modelo "olvida" la conversación | no se mandó el historial | incluir los últimos mensajes |
+| Error por roles | dos `user` seguidos o el último no es `user` | alternar `user` / `assistant` |
+| Respuesta cortada | se alcanzó `max_tokens` (`stop_reason`) | subir `max_tokens` o pedir respuestas más cortas |
+| Gasto inesperado | historial completo en cada mensaje, sin límites | recortar historial, `max_tokens`, topes |
+| `mypy`: `.text` no existe | `content` tiene bloques de varios tipos | revisar `bloque.type == "text"` |
+| Clave subida a GitHub | `.env` sin ignorar | revocarla y agregar `.env` al `.gitignore` |
+| Pruebas lentas o que gastan | llaman al LLM real | reemplazarlo con un falso |
+
+[⬆ Volver al índice](#índice)
 
 [⬆ Volver al índice](#índice)
 
