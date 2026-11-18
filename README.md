@@ -54,6 +54,15 @@ Desde fundamentos hasta proyectos backend reales (POO, bases de datos, APIs, aut
   - [11. Autenticación: JWT y OAuth2 (panorama)](#11-autenticación-jwt-y-oauth2-panorama)
   - [12. Probar la API: docs, TestClient, httpx y curl](#12-probar-la-api-docs-testclient-httpx-y-curl)
   - [13. Estructura recomendada y errores comunes](#13-estructura-recomendada-y-errores-comunes)
+  - [📌 RESUMEN DE CIERRE · Módulo: APIs con FastAPI](#-resumen-de-cierre--módulo-apis-con-fastapi)
+    - [1. Python: conceptos nuevos (APIs)](#1-python-conceptos-nuevos-apis)
+    - [2. HTTP, orígenes y CORS](#2-http-orígenes-y-cors)
+    - [3. FastAPI](#3-fastapi)
+    - [4. Pydantic](#4-pydantic)
+    - [5. SQLite en una API](#5-sqlite-en-una-api)
+    - [6. Pruebas con pytest](#6-pruebas-con-pytest)
+    - [7. Herramientas y Git (APIs)](#7-herramientas-y-git-apis)
+    - [8. Errores comunes de este módulo (APIs)](#8-errores-comunes-de-este-módulo-apis)
 
 ---
 
@@ -2325,6 +2334,205 @@ En `main.py`: `app.include_router(router)`.
 
 [⬆ Volver al índice](#índice)
 
+---
 
+# 📌 RESUMEN DE CIERRE · Módulo: APIs con FastAPI
+
+> Lo más importante del módulo, para repasar rápido. Solo conceptos de Python, FastAPI y herramientas.
+
+## 1. Python: conceptos nuevos (APIs)
+
+| Concepto | Qué es | Ejemplo |
+|---|---|---|
+| `yield` | pausa la función, entrega un valor y luego continúa desde ahí | `yield conexion` |
+| Generador | función con `yield`; sirve para "preparar → entregar → limpiar" | `def obtener() -> Iterator[X]:` |
+| `async def` | función asíncrona: puede pausarse en un `await` mientras espera algo lento, y el programa atiende otras cosas | `async def lifespan(app): ...` |
+| `Annotated[tipo, extra]` | un tipo con información adicional para una herramienta | `Annotated[int, Query(ge=1)]` |
+| Alias de tipo | guardar un tipo largo en un nombre corto | `Conexion = Annotated[...]` |
+| Función interna | función definida dentro de otra; puede usar sus variables | fixture con `def interna(): ...` |
+| `lista[-n:]` | los últimos `n` elementos (ojo: `lista[-0:]` es la lista completa) | `registros[-limite:]` |
+| `assert condición` | si es `False`, lanza `AssertionError` | `assert x == 200` |
+| `raise X from error` | lanza un error nuevo dejando pegada la causa original | `raise HTTPException(...) from error` |
+| `in` / `not in` | revisar si algo está en una lista o diccionario | `assert "clave" not in d` |
+| Constante de módulo | lo caro de crear y que no cambia se crea **una vez**, fuera de las funciones, en MAYÚSCULAS | `ADAPTADOR = TypeAdapter(...)` |
+
+**Tipos de `collections.abc` y `contextlib`:**
+- `Iterator[X]`: tipo de retorno de una función con `yield`.
+- `AsyncGenerator[None]`: tipo de retorno de una función `async` con `yield` decorada con `@asynccontextmanager`.
+- `@asynccontextmanager`: convierte una función `async` con `yield` en un "antes / después".
+
+**Nombres (PEP 8):** variables y funciones en `snake_case`, clases en `PascalCase`, constantes en `MAYÚSCULAS`. Argumentos por nombre sin espacios: `f(nombre=valor)`. Dos líneas en blanco entre funciones y clases de nivel superior.
+
+[⬆ Volver al índice](#índice)
+
+## 2. HTTP, orígenes y CORS
+
+| Código | Significado |
+|---|---|
+| `200` | OK |
+| `201` | creado |
+| `204` | sin contenido |
+| `400` | datos con sentido inválido para la lógica |
+| `401` / `403` | no autenticado / sin permiso |
+| `404` | no existe la ruta o el recurso |
+| `405` | la ruta existe, pero con otro método |
+| `422` | los datos no cumplen el modelo (lo genera FastAPI) |
+| `500` | falló el código del servidor |
+| `503` | el servidor está vivo, pero algo de lo que depende no responde |
+
+- `GET` solo lee y no lleva cuerpo; `POST` envía datos o crea algo.
+- **Origen** = protocolo + dominio + puerto: `http://localhost:5500`.
+- `localhost` y `127.0.0.1` son "este mismo computador", pero el navegador los trata como orígenes distintos.
+- **Puerto**: el "apartamento" dentro del computador donde vive cada programa.
+- **CORS**: la API dice qué orígenes (páginas) pueden llamarla; **el navegador** lo hace cumplir. No protege de `curl` ni de scripts: eso lo hace el login.
+- **Preflight**: antes de un `POST` con JSON, el navegador pregunta con `OPTIONS` si puede hacerlo.
+- **Logs**: los `print` del servidor salen en la terminal del servidor, no al usuario.
+
+[⬆ Volver al índice](#índice)
+
+## 3. FastAPI
+
+```python
+app = FastAPI(lifespan=lifespan)
+
+@app.get("/ruta")                    # GET
+@app.post("/ruta")                   # POST
+def ruta(...) -> TipoDeRespuesta: ...
+```
+
+| Herramienta | Para qué |
+|---|---|
+| Parámetro `BaseModel` | se lee del cuerpo JSON |
+| Parámetro simple fuera de la ruta | query: `?limite=5` |
+| `Query(ge=1, le=100)` | límites a un parámetro de la URL |
+| Tipo de retorno | contrato de salida: valida y documenta |
+| `Depends(funcion)` | FastAPI ejecuta la función y le pasa el resultado a la ruta |
+| `Depends` con `yield` | abrir antes de la ruta y cerrar después (una vez por petición) |
+| `lifespan` | código una vez al arrancar (antes del `yield`) y al apagar (después) |
+| `HTTPException(status_code, detail)` | error controlado en una ruta; se **lanza** con `raise` |
+| `@app.exception_handler(TipoError)` | un manejador para ese error en **todas** las rutas; **devuelve** un `JSONResponse` |
+| `JSONResponse(status_code, content)` | armar la respuesta a mano |
+| `app.add_middleware(CORSMiddleware, ...)` | capa que revisa todas las peticiones y respuestas |
+| `/docs`, `/redoc`, `/openapi.json` | documentación generada sola (Swagger, como en .NET) |
+
+- `FastAPI` es un **framework** (como ASP.NET Core); `app` es **tu** API.
+- `fastapi dev archivo.py` reinicia el servidor cada vez que guardas.
+- El detalle de un `500` aparece en la terminal, nunca en la respuesta.
+
+[⬆ Volver al índice](#índice)
+
+## 4. Pydantic
+
+```python
+class Modelo(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+    texto: str = Field(min_length=1, max_length=500)
+    opcional: str | None
+    interno: OtroModelo          # modelo anidado
+    extras: dict[str, str]       # claves que no son fijas
+```
+
+| Herramienta | Qué hace |
+|---|---|
+| `Modelo(campo=valor)` | crea un objeto (cada campo por nombre) |
+| `Modelo.model_validate(dict)` | **un** diccionario → **un** objeto, validando |
+| `objeto.model_dump()` | objeto → diccionario |
+| `TypeAdapter(list[Modelo]).validate_python(lista)` | convierte una lista completa de una vez |
+| `ConfigDict(str_strip_whitespace=True)` | `strip()` a todos los textos antes de validar |
+
+- Los nombres de los campos deben ser **iguales** a las claves del diccionario.
+- Si falta un campo o un tipo no coincide: `ValidationError`.
+- Usa modelos distintos para la entrada y la salida.
+
+[⬆ Volver al índice](#índice)
+
+## 5. SQLite en una API
+
+- Una conexión **por petición**, abierta y cerrada con `Depends` + `yield`.
+- `check_same_thread=False`: necesario porque FastAPI puede usar la conexión en otro hilo.
+- `SELECT 1`: consulta mínima para comprobar que la base responde.
+- `CREATE TABLE IF NOT EXISTS`: crear solo si no existe.
+- `INSERT OR IGNORE`: insertar solo si no existe; si existe, no hace nada.
+- `INSERT ... ON CONFLICT(...) DO UPDATE`: insertar o **actualizar** si ya existe.
+- `sqlite3.Error`: clase base de todos los errores de SQLite (atrapa solo esos, no `Exception`).
+- `FOREIGN KEY constraint failed`: se intentó guardar algo que apunta a una fila que no existe.
+
+[⬆ Volver al índice](#índice)
+
+## 6. Pruebas con pytest
+
+```python
+@pytest.fixture
+def cliente(tmp_path: Path) -> Iterator[TestClient]:
+    # preparar
+    yield TestClient(app)
+    # limpiar
+
+
+def test_algo(cliente: TestClient) -> None:
+    respuesta = cliente.post("/ruta", json={"campo": "valor"})
+    assert respuesta.status_code == 200
+    assert respuesta.json()["campo"] == "valor"
+```
+
+| Herramienta | Para qué |
+|---|---|
+| `test_*.py` / `def test_*` | `pytest` los encuentra solo |
+| `@pytest.fixture` | prepara algo para las pruebas; se inyecta por el **nombre** del parámetro |
+| `tmp_path` | carpeta temporal nueva para cada prueba |
+| `app.dependency_overrides[orig] = prueba` | reemplazar una dependencia durante las pruebas |
+| `TestClient(app)` | peticiones sin levantar el servidor; sin `with` no ejecuta el `lifespan` |
+| `.get(ruta, params=, headers=)` / `.post(ruta, json=)` | query, cabeceras y cuerpo |
+| `respuesta.json()` | cuerpo → objeto Python (como `json.loads`) |
+| `pytest -v` | correr las pruebas viendo cada nombre |
+
+- PASSED = la prueba terminó sin errores. FAILED = algún `assert` u otro error.
+- Haz fallar una prueba a propósito para comprobar que **puede** fallar.
+- Recordatorio de `json`: `load` (archivo → objeto), `loads` (texto → objeto), `dump` (objeto → archivo), `dumps` (objeto → texto).
+
+[⬆ Volver al índice](#índice)
+
+## 7. Herramientas y Git (APIs)
+
+| Comando o atajo | Qué hace |
+|---|---|
+| `pip install "fastapi[standard]"` | FastAPI con su servidor y extras |
+| `pip freeze \| Out-File -Encoding utf8 requirements.txt` | guardar las dependencias en UTF-8 desde PowerShell |
+| `ruff check --fix` | corrige lo que puede, como el orden de los imports |
+| `ruff format` | formatea el código (espacios, líneas en blanco) |
+| `mypy .` | revisa los tipos de todo el proyecto |
+| `F2` en VS Code | renombrar un símbolo en todos los archivos |
+| `git diff` | ver qué cambió desde el último commit |
+| `git push --set-upstream origin rama` | primer push de una rama nueva |
+| `git branch -d rama` | borrar una rama local ya mergeada |
+| `git fetch --prune` | quitar referencias a ramas remotas borradas |
+| `git tag -a vX -m "..."` + `git push origin vX` | marcar y subir una versión |
+
+- Orden de imports: librería estándar, externas y propias, separadas por una línea en blanco, con los nombres en orden alfabético.
+- **Behind / Ahead** en GitHub: si una rama tiene **Ahead 0**, todo su trabajo ya está en `main` y se puede borrar.
+- Rama = borrador; tag = foto de la versión terminada.
+
+[⬆ Volver al índice](#índice)
+
+## 8. Errores comunes de este módulo (APIs)
+
+| Error | Causa | Solución |
+|---|---|---|
+| `{"detail": "Not Found"}` | la ruta no existe | revisar la ruta y el método |
+| `422` inesperado | el cuerpo no cumple el modelo | leer el campo `detail` |
+| `500` en una ruta | falló el código | mirar el *traceback* en la terminal |
+| `500` con `model_validate` | el nombre de un campo no coincide con la clave del diccionario | igualar los nombres |
+| `model_validate(lista)` | recibe **un** diccionario, no una lista | recorrer con `for` o usar `TypeAdapter` |
+| `lista[-2:]` sobre un número | slicing a un `int` | hacer slicing a la lista |
+| `TypeError: ... not _AnnotatedAlias` | se pasó un tipo (alias) como si fuera un valor | los alias solo van como tipo de un parámetro |
+| `Missing return statement` (mypy) | la función promete un tipo y no tiene `return` | agregar el `return` |
+| `FOREIGN KEY constraint failed` | se guarda algo de un usuario que no existe | crear la fila padre primero |
+| `same thread` de SQLite | conexión usada en otro hilo | `check_same_thread=False` |
+| Error de CORS en el navegador | el origen no está en `allow_origins` | agregar el origen exacto (con puerto) |
+| Raya sobre un decorador | algo *deprecated* | pasar el mouse y leer el mensaje |
+| Variable con el nombre de la función | la tapa dentro de la función | usar otro nombre |
+| `return HTTPException(...)` | se lanza, no se devuelve | usar `raise` |
+
+[⬆ Volver al índice](#índice)
 
 
